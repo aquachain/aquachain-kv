@@ -1,0 +1,1177 @@
+#!/usr/bin/env python3
+from aquachain import aquasettings, keystore
+from aquachain.aquachain import AquaTool
+from kivymd.button import MDIconButton
+from kivymd.list import ILeftBody, IRightBody
+from kivy import Logger
+import datetime
+import math
+import sys
+import binascii
+from subprocess import Popen, PIPE, STDOUT
+import subprocess
+import os
+from kivy.app import App
+from kivy.clock import Clock
+from kivy.uix.button import Button
+from kivy.factory import Factory
+from kivy.graphics import Ellipse, Rectangle
+from kivy.lang import Builder
+from kivy.metrics import dp
+from kivy.properties import ListProperty, StringProperty, OptionProperty, ObjectProperty, NumericProperty
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.dropdown import DropDown
+from kivy.uix.floatlayout import FloatLayout
+from kivy.core.window import Window
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.image import Image
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.settings import SettingsWithSidebar
+from kivymd.backgroundcolorbehavior import SpecificBackgroundColorBehavior
+from kivy.uix.recycleboxlayout import RecycleBoxLayout
+from kivymd.button import MDFlatButton, MDRaisedButton, MDIconButton
+from kivymd.bottomsheet import MDListBottomSheet, MDGridBottomSheet
+from kivymd.date_picker import MDDatePicker
+from kivymd.dialog import MDDialog
+from kivymd.elevationbehavior import RectangularElevationBehavior
+from kivymd.label import MDLabel
+from kivymd.tabs import MDTabbedPanel, MDTab
+from kivymd.toolbar import Toolbar
+from kivymd.card import MDCard, MDSeparator
+from os import chmod
+from Crypto.PublicKey import RSA
+from mnemonic import Mnemonic
+from kivymd.material_resources import DEVICE_TYPE
+from kivymd.navigationdrawer import MDNavigationDrawer, NavigationDrawerHeaderBase
+from kivymd.selectioncontrols import MDCheckbox
+from kivymd.snackbar import Snackbar
+from kivymd.theming import ThemeManager, ThemableBehavior
+from kivymd.time_picker import MDTimePicker
+from kivymd.list import OneLineListItem, TwoLineListItem
+import requests, json
+from kivy.properties import BoundedNumericProperty, ReferenceListProperty, ListProperty,BooleanProperty
+from kivymd.elevationbehavior import RectangularElevationBehavior
+from kivy.garden.qrcode import QRCodeWidget
+from kivy.animation import Animation
+import kivymd.material_resources as m_res
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.dropdown import DropDown
+from kivy.base import runTouchApp
+from kivy.config import Config
+from kivy.uix.textinput import TextInput
+from kivy.uix.popup import Popup
+from kivymd.textfields import MDTextField
+from kivy.core.clipboard import Clipboard
+
+import time
+Builder.load_file('aquachain/aquachain.kv')
+
+aquaconf = 'Aquachain' # the string
+
+log = Logger
+
+
+class ListIconLeft(ILeftBody, MDIconButton):
+    pass
+class ListIconRight(IRightBody, MDIconButton):
+    pass
+
+class Aquachain(BoxLayout):
+    # account chooser
+    choose_account = []
+    # account for send from and mine to
+    coinbase = ""
+    # public address for balance, recv.
+    # if sending, use either mkeys or an rpc call
+    addresses = []
+    # map of account balances
+    balances = {}
+    # total balance sum
+    balance = 0.00
+    # current head block
+    head = {}
+
+    # history of sent transactions
+    sent_tx = []
+    synced = False
+    contacts = {"saved": {'0xce3b1b1c2a4db8ee2628b34ed564fe3daab0f7bc': 'donate     (to the aquachain foundation)'}, "recent": []}
+    config = Config
+    mkeys = []
+    viewonly = True
+
+    private_keys = {}
+
+    def __init__(self, app, **kwargs):
+        super(Aquachain, self).__init__(**kwargs)
+        self.root = app
+        self.config = app.config
+        self.aqua = AquaTool(ipcpath=self.config.get(aquaconf, 'ipcpath'), rpchost=self.config.get(aquaconf, 'rpchost'))
+        self.ids.balance.text = 'Click to Show'
+        def start_refresher(dt):
+            self.clock = Clock.schedule_interval(self.refresh, float(self.config.getdefault(aquaconf, 'noderefresh', '2.5')))
+        Clock.schedule_once(start_refresher, 5)
+        self.block_cache = self.getblock_cache() # unused
+        self.keystore = keystore.Keystore(directory=os.path.expanduser(self.config.getdefault(aquaconf, 'keystore', '.'))) # pubkey to filename
+        log.info("using keystore: %s", self.keystore.directory)
+
+    # gets called every x seconds
+    def refresh(self, dt):
+        log.debug("refreshing after %s seconds", dt)
+        self.update()
+
+    def getblock_cache(self):
+        foo = []
+        for i in range(self.config.getdefaultint(aquaconf, 'blocklimit', 100)):
+            foo.append({})
+        log.info(f"allocated {len(foo)}")
+        return foo
+    # get latest head block
+    def update(self):
+        log.debug("connecting to rpc: %s", self.aqua.providers[0])
+        try:
+            newhead = self.aqua.gethead()
+            log.debug("connected to rpc: %s", self.aqua.providers[0])
+        except Exception as e:
+            Snackbar("Please start aquachain node or change host in settings", duration=0.5).show()
+            log.info("unable to connect to rpc: %s", e)
+            return
+
+        if 'number' not in newhead:
+            del(newhead)
+            log.error("no head block")
+            return
+
+        if newhead == None or newhead == '':
+            del(newhead)
+            log.error("no head block!")
+            return
+
+        if 'number' in self.head and self.head['number'] == newhead['number']:
+            del(newhead)
+            log.debug("same head, bailing")
+            return
+
+
+
+        log.info("new head block")
+        self.head = newhead
+        if self.ids.scr_mngr.current == 'blockchain':
+            self.getHistory()
+        if not self.synced:
+            self.getHistory()
+        self.synced = True
+        del(newhead)
+        Snackbar(f"New blockchain height: {str(int(self.head['number'], 16))}").show()
+
+        if 'number' in self.head:
+            log.info("new head number %s", str(int(self.head['number'], 16)))
+            log.info("header hash %s", self.head['hash'])
+            log.info("header mined by %s", self.head['miner'])
+            log.info("header version %s", self.head['version'])
+            self.ids.block.text = str(int(self.head['number'], 16))
+
+
+    def open_account(self, viewonly=False):
+        self.viewonly = viewonly
+        if self.ids.account_use_new.active == True:
+            self.open_pass()
+        elif self.ids.account_use_import.active == True:
+            self.popup_import_mnem()
+        elif self.ids.account_use_file.active == True:
+            self.popup_import_file(viewonly=viewonly)
+        elif self.ids.account_use_node.active:
+            self.load_accounts_from_node()
+            self.switch_view("coinbasechooser", "up")
+        else:
+            Snackbar(text="OOps you forgot to check one.").show()
+
+
+    def add_hdwallet(self, phrase, passphrase, saving=True, num=10, viewonly=False):
+        phrase = phrase.strip()
+        words = phrase.split(" ")
+        if len(words) != 12:
+            log.error("invalid phrase length: %s \n", len(phrase.split(" ")))
+            raise ValueError("invalid phrase")
+        for word in words:
+            if word not in Mnemonic('english').wordlist:
+                raise ValueError(f"invalid word: {word}")
+
+        log.info("add_wallet: %s, saving=%s", words[0], saving)
+
+        mkey = self.keystore.load_phrase(phrase, passphrase)
+        for existing in self.mkeys:
+            if existing['phrase'] == phrase:
+                log.info("dupe detect")
+                raise ValueError("duplicate wallet")
+
+        if saving:
+            self.keystore.save_phrase(phrase)
+
+        if not viewonly:
+            self.mkeys.append({'phrase': phrase, "key": mkey})
+            log.debug("added mkey (not viewonly)")
+
+        for i in range(num):
+            key = self.aqua.derive_hd(mkey, i)
+            pub = key.public_key.address()
+            log.info("added pubkey from mkey %s", pub)
+            self.balances[pub] = self.aqua.getbalance(pub)
+            log.info("New account #%s: %s", i, key.public_key.address())
+        self.refresh_balance()
+
+
+    def open_pass(self):
+        content = BoxLayout(padding=dp(20), orientation='vertical')
+        pwh = MDLabel(text='Recommended', font_style='Subhead')
+        # content.add_widget(pwh)
+        pw = TextInput(id='unlock1', password=True)
+        content.size_hint_y=None
+        content.add_widget(pwh)
+        content.add_widget(pw)
+        dialog = MDDialog(title='Enter passphrase (Recommended)',
+            content= content,
+            size_hint=(.5, .45),
+            auto_dismiss=False,
+            )
+        dialog.add_action_button('CANCEL', action=lambda *x: dialog.dismiss())
+        dialog.add_action_button("Confirm", action=lambda *x: self.popup_mnem_gen(pw.text, dialog))
+        dialog.open()
+
+
+    def popup_mnem_gen(self, passphrase, dialog):
+        dialog.dismiss()
+        content = GridLayout(cols=1)
+        phrase = self.aqua.generate_phrase()
+        mnem = MDTextField(id='seedlabel',background_color=(.1, .1, .1, 1), multiline=True, text=phrase,
+                            required=False,)
+
+        # messagelabel.bind(texture_size=messagelabel.setter('size'))
+        content.size_hint_y=None
+        content.add_widget(mnem)
+        dialog = MDDialog(title="Write down this phrase or generate new",
+            content=content,
+            size_hint=(.85, .5),
+            auto_dismiss=False,
+            )
+
+        def refresh(instance):
+            mnem.text = self.aqua.generate_phrase()
+            return True
+
+        def copy2clip(instance):
+            Clipboard.copy(mnem.text)
+            Snackbar("Copied to clipboard!").show()
+
+        def create(instance):
+            self.add_hdwallet(mnem.text, passphrase, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
+            dialog.dismiss()
+            self.switch_view('coinbasechooser', 'up')
+
+        dialog.add_action_button("GENERATE", action=refresh)
+        dialog.add_action_button("COPY", action=copy2clip)
+        dialog.add_action_button('CANCEL', action=lambda *x: dialog.dismiss())
+        dialog.add_action_button("CONFIRM", action=create)
+        dialog.open()
+
+
+    def popup_import_file(self, viewonly=False):
+        return self.popup_import_directory(viewonly=viewonly)
+
+
+    def popup_import_directory(self, viewonly=False):
+        content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(50))
+        kdir = TextInput(id='directory', text=self.config.get(aquaconf, 'keystore'))
+        dirlabel= MDLabel(text='Keypath', font_style="Subhead")
+        passlabel= MDLabel(text='Passphrase', font_style="Subhead")
+        passphrase = TextInput(id='unlock', password= True)
+        # kdir.bind(hint_text='Enter filepath to key')
+        # passphrase.bind(hint_text='Account passphrase')
+        content.add_widget(dirlabel)
+        content.add_widget(kdir)
+        content.add_widget(passlabel)
+        content.add_widget(passphrase)
+        dialog = MDDialog(title="Enter path of phrase files",
+            content=content,
+            size_hint=(.7,.6),
+            auto_dismiss=False,
+            )
+        def findkey(instance):
+            if kdir.text == "":
+                kdir.text = "."
+            phrases = keystore.Keystore(directory=os.path.expanduser(kdir.text)).listphrases()
+            for phrase in phrases:
+                try:
+                    self.add_hdwallet(phrase, passphrase.text, saving=False, viewonly=viewonly, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
+                except ValueError as e:
+                    log.error("skipping bad phrase wallet: %s", e)
+                    continue
+                except Exception as e:
+                    log.error("skipping phrase wallet: %s", e)
+                    raise
+            dialog.dismiss()
+            self.switch_view('coinbasechooser', 'up')
+        dialog.add_action_button('CANCEL', action=lambda *x: dialog.dismiss())
+        dialog.add_action_button("CONFIRM", action=findkey)
+        dialog.open()
+
+
+    def popup_import_mnem(self, viewonly=False):
+        content = GridLayout(cols=1, row_default_height = dp(40))
+        chex = BoxLayout(padding=(dp(100),dp(20)))
+        # pass_cont = BoxLayout(minimum_height=self.height, padding = dp(30), size_hint_y=.3)
+        pass_label = MDLabel(text="Passphrase", font_style='Subhead')
+        mnem = TextInput(id='importseed')
+        passphrase = TextInput(id='unlock', password=True)
+        saving_choice = MDCheckbox(text="Save to File")
+        saving_label = MDLabel(text="Save to file", font_style='Body2')
+        # messagelabel.bind(texture_size=messagelabel.setter('size'))
+        chex.add_widget(saving_choice)
+        chex.add_widget(saving_label)
+        content.add_widget(mnem)
+        content.add_widget(pass_label)
+        content.add_widget(passphrase)
+        content.add_widget(chex)
+        dialog = MDDialog(title="Enter mnemonic phrase to recover key",
+            content=content,
+            size_hint=(.6, .6),
+            auto_dismiss=False,
+            )
+        def findkey(instance):
+            try:
+                self.add_hdwallet(mnem.text, passphrase.text, saving=saving_choice.active, viewonly=viewonly, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
+            except Exception as oo:
+                Snackbar(f"Error: {oo}", duration=5).show()
+                dialog.dismiss()
+                return
+
+            dialog.dismiss()
+            self.switch_view('coinbasechooser', 'up')
+        dialog.add_action_button('CANCEL', action=lambda *x: dialog.dismiss())
+        dialog.add_action_button("CONFIRM", action=findkey)
+        dialog.open()
+
+
+    # set new coinbase
+
+    def set_coinbase(self, acct):
+        self.coinbase = acct
+        self.updateqr(acct)
+        log.info("New coinbase is: %s",format(self.coinbase))
+
+
+    # update qr data and caption
+
+    def updateqr(self, acct):
+        if acct == '':
+            log.error("updateqr: empty acct")
+            return
+
+        self.ids.qr.data = 'aquachain:'+ self.coinbase
+        # self.ids.qrlabel.secondary_text = self.coinbase
+        #self.ids.send_chooser.secondary_text = self.coinbase
+
+
+
+    def toggle_display_balance(self, text):
+        if len(self.addresses) == 0 and len(self.balances) == 0:
+            Snackbar("Open an account first", duration=1).show()
+            return 'Click to Show'
+        if text == 'Click to Show':
+            self.refresh_balance()
+            return str(self.balance)
+        else:
+            return 'Click to Show'
+
+
+    # load available acct from rpc
+    def load_accounts_from_node(self):
+        self.addresses.clear() # addresses are only rpc addresses
+        self.addresses = self.aqua.getaccounts()
+
+        Snackbar(f'found {len(self.addresses)} accounts from RPC').show()
+        return
+
+
+    def get_coinbase_view(self):
+        grid = self.ids.cbasegrid
+        grid2 = self.ids.cbasegrid2
+        grid.clear_widgets()
+        grid2.clear_widgets()
+        now = datetime.datetime.now()
+        nowstr = now.strftime("%s") + str(now.microsecond)
+        grid.add_widget(MDFlatButton(text="Type"))
+        grid.add_widget(MDFlatButton(text="Address"))
+        grid.add_widget(MDFlatButton(text="Balance"))
+        grid2.add_widget(MDFlatButton(text="Type"))
+        grid2.add_widget(MDFlatButton(text="Address"))
+        grid2.add_widget(MDFlatButton(text="Balance"))
+        def funky(instance):
+            log.info("clicked button: %s", instance.text)
+            pub = instance.id
+            balance = str(self.aqua.getbalance(pub))
+            log.info("launching popup: %s %s", pub, balance)
+            self.popup_acct({
+                           'Address': pub,
+                           'Balance': balance,
+                           'Type': 'personal'
+                           })
+
+
+        for acct in self.addresses:
+            balance = self.aqua.getbalance(acct)
+            log.info("found rpc account: %s", acct)
+            grid2.add_widget(MDFlatButton(id=acct, text="rpc", on_release=funky))
+            grid2.add_widget(MDFlatButton(id=acct, text=acct[:25]+'...',on_release=funky))
+            grid2.add_widget(MDFlatButton(id=acct, text=str(balance), on_release=funky))
+
+        if not self.viewonly:
+            for mkey in self.mkeys:
+                if 'phrase' not in mkey:
+                    continue
+                for i in range(self.config.getdefaultint(aquaconf, 'hdwallets', 1)):
+                    key = self.keystore.from_parent_key(mkey['key'], i)
+                    pub = key.public_key.address()
+                    if pub == '':
+                        continue
+                    balance = self.aqua.getbalance(pub)
+                    self.private_keys[pub] = key._key.to_hex()
+                    self.balances[pub] = balance
+                    log.info("balance map: %s", self.balances)
+                    grid.add_widget(MDFlatButton(id=pub, text=f'HD ({mkey["phrase"].split(" ")[0]} {i})', on_release=funky))
+                    grid.add_widget(MDFlatButton(id=pub,text=pub[:20]+'...',on_release=funky))
+                    grid.add_widget(MDFlatButton(id=pub,text=str(balance),on_release=funky))
+
+        else:
+            i = 0
+            for pub in self.balances:
+                balance = self.aqua.getbalance(pub)
+                grid.add_widget(MDFlatButton(id=pub, text=f'VIEW HD {i}', on_release=funky))
+                grid.add_widget(MDFlatButton(id=pub,text=pub[:20]+'...',on_release=funky))
+                grid.add_widget(MDFlatButton(id=pub,text=str(balance),on_release=funky))
+                i += 1
+
+    # refresh balance(s) and update displays
+    def refresh_balance(self):
+        log.info(self.balances)
+        self.balance = 0.00
+
+        if len(self.balances) > 0:
+            for account in self.balances:
+                if account == '':
+                    continue
+                bal = float(self.aqua.getbalance(account))
+                self.balances[account] = bal
+
+                self.balance += bal
+
+
+        if len(self.balances) < 1 and len(self.addresses) < 1:
+            log.info("no addresses")
+            self.ids.balance.text = "no accounts"
+            Snackbar("no accounts").show()
+            return
+
+        log.info("found %s rpc accounts: %s", len(self.addresses), self.addresses)
+
+        for account in self.addresses:
+            if account == '':
+                continue
+            bal = float(self.aqua.getbalance(account))
+            # self.balances[account] = bal
+            self.balance += bal
+        log.info("balance refreshed")
+
+
+    # sendcoin using rpc's unlocked wallet
+    def sendCoin(self, fromwallet, to, amount, passphrase=""):
+        gasprice = self.config.get(aquaconf, 'fuelprice')
+        log.info("from: %s, to: %s, amount: %s", fromwallet, to, self.aqua.to_wei(amount))
+        txhash = ''
+        tx = {
+            'from': self.aqua.checksum_encode(fromwallet),
+            'to': self.aqua.checksum_encode(to),
+            'value': hex(self.aqua.to_wei(amount)),
+            'gasPrice': hex(self.aqua.to_wei(gasprice, 'gwei')),
+            'gas': 21000,
+            'nonce': hex(self.aqua.get_nonce(fromwallet, 'pending'))
+        }
+        if fromwallet in self.aqua.getaccounts():
+            log.info("sending transaction (RPC): (%s) %s", fromwallet, tx)
+            try:
+                txhash = self.aqua.w3.personal.sendTransaction(tx, passphrase)
+                log.info("Submitted TX: %s", txhash)
+                log.info("send successfully wtf yo")
+                self.addRecent(f'{txhash.hex()}')
+                self.popup_contacts(tx['to'])
+                Snackbar(text="Transaction Sent: %s" % txhash.hex()).show()
+            except Exception as e:
+                log.error("RPC returned error: %s", e)
+                return ''
+
+        elif fromwallet in self.private_keys:
+            log.info("sending transaction (HD): (%s) %s", fromwallet, tx)
+            try:
+                rawtx = self.aqua.sign_tx(self.private_keys[fromwallet], tx)
+                log.info("Raw Signed TX: %s", rawtx)
+                txhash = self.aqua.send_raw_tx(rawtx)
+                log.info("Submitted TX: %s", txhash)
+                Snackbar(text="Transaction Sent: %s" % txhash).show()
+                self.addRecent(txhash)
+                self.popup_contacts(tx['to'])
+                return txhash
+            except Exception as e:
+                log.error("RPC returned error: %s", e)
+                return ''
+
+
+    # switch view
+    def switch_view(self, page, direction):
+        log.debug("switching view to %s, direction %s", page, direction)
+        if page == 'send':
+            if len(self.balances) == 0 and len(self.addresses) == 0:
+                Snackbar("Open an account first", duration=1).show()
+                self.switch_view('welcome', 'down')
+                return
+            if self.viewonly:
+                Snackbar("You are in view-only mode").show()
+                return
+            self.fillMenu()
+        if page == 'history':
+            self.myHistory()
+        if page == 'coinbasechooser':
+            if len(self.balances) == 0 and len(self.addresses) == 0:
+                Snackbar("Open an account first", duration=1).show()
+                self.switch_view('welcome', 'down')
+                return
+            self.get_coinbase_view()
+        if page == 'blockchain':
+            self.getHistory(limit=self.config.getdefaultint(aquaconf, 'blocklimit', 10))
+        if page == 'current_block':
+            self.popup_block(self.head['hash'])
+            return
+        if page == 'addresses':
+            self.build_address_book()
+
+        self.ids.scr_mngr.transition.direction = direction
+        self.ids.scr_mngr.current = page
+
+    def write_contacts_file(self):
+        # save self.contacts to ~/.aquachain/contacts.json
+        with open('contacts.json', 'w+') as f:
+            log.info("dumping: %s", self.contacts)
+            json.dump(self.contacts, f)
+            return
+
+    def popup_editcontact(self, pub='', note=''):
+        self.popup_addcontact(overwrite=True, pub=pub, note=note)
+
+    def popup_addcontact(self, overwrite=False, pub='', note=''):
+        grid = GridLayout(cols=1, size_hint_y=None, row_default_height=30)
+        dialog = MDDialog(title='Add Contact',
+                          content=grid,
+                          size_hint= (.7,.45),
+                          auto_dismiss=True,
+                          )
+        foolabel = MDLabel(id='cont_namelabel',text='Name', font_style='Subhead', bold=True)
+        footext = TextInput(id='cont_nameinput', text=note)
+        foolabel2 = MDLabel(id='cont_addrlabel' ,text='Address', font_style='Subhead', bold=True)
+        footext2 = TextInput(id='cont_addrinput', text=pub)
+        def addcontact(instance):
+            self.addContact(footext2.text, overwrite=overwrite)
+            if footext.text in self.contacts['saved']:
+                Snackbar(text=f'{footext2.text[:10]} already in address book', duration=3).show()
+                dialog.dismiss()
+                return
+            else:
+                self.contacts['saved'][footext2.text] = footext.text,
+                try:
+                    self.write_contacts_file()
+                    self.build_address_book()
+                except Exception as e:
+                    log.error("error writing file: %s", e)
+                    Snackbar(text=f"error: {e}")
+                    return
+                dialog.dismiss()
+        btn = MDRaisedButton(text='save', on_release=addcontact)
+        grid.add_widget(foolabel)
+        grid.add_widget(footext)
+        grid.add_widget(foolabel2)
+        grid.add_widget(footext2)
+        grid.add_widget(btn)
+        dialog.open()
+
+    def addContact(self, pub, note='', overwrite=False):
+        if not overwrite and pub in self.contacts['saved']:
+            Snackbar(text=f'{pub[:10]} already in address book', duration=3).show()
+        else:
+            self.contacts['saved'][f'{pub}'] = note
+            try:
+                self.write_contacts_file()
+            except Exception as e:
+                log.error("error writing file: %s", e)
+                Snackbar(text=f"error: {e}")
+                return
+    def addRecent(self, txhash):
+        self.contacts['recent'].append(txhash),
+        try:
+            self.write_contacts_file()
+            log.info("saved recent transactions to file")
+        except Exception as e:
+            log.error("error writing file: %s", e)
+            Snackbar(text=f"error: {e}")
+            return
+
+    def popup_contacts(self, contact):
+        s = Snackbar(text=f'Add {contact[:10]} to Address Book?', button_text='OK', duration=5)
+        def foo():
+            self.addContact(contact)
+        s.button_callback=foo
+        s.show()
+
+    def build_address_book(self):
+        self.ids.saved_cont.clear_widgets()
+        self.ids.saved_cont.add_widget(MDFlatButton(text="Name"))
+        self.ids.saved_cont.add_widget(MDFlatButton(text="Address"))
+        self.ids.recent_cont.clear_widgets()
+        self.ids.recent_cont.add_widget(MDFlatButton(text="Amount"))
+        self.ids.recent_cont.add_widget(MDFlatButton(text="Address"))
+        i=0
+        c=0
+        if os.path.isfile('contacts.json'):
+            with open('contacts.json') as f:
+                json_data = json.load(f)
+                log.info(f'Json Data: {json_data}')
+                self.contacts = json_data
+                log.info(self.contacts)
+        def foo(instance):
+            bal = 'INVALID ACCT'
+            try:
+                bal = self.aqua.getbalance(instance.id)
+            except Exception as e:
+                Snackbar("invalid account?", duration=1).show()
+                log.error("got error: %s", e)
+            self.popup_acct({'Address': instance.id, 'Balance': bal, 'Type':'contact'})
+        def foo_tx(instance):
+            try:
+                txhash = instance.id
+                tx = self.aqua.gettransaction(txhash)
+                self.popup_tx(tx)
+            except Exception as e:
+                Snackbar("invalid tx?", duration=1).show()
+                log.error("got error: %s", e)
+        if 'saved' not in self.contacts:
+            Snackbar("no contacts in saved file").show()
+            return
+        for t in self.contacts['saved']:
+            log.info("contacts %s: %s", t, self.contacts['saved'])
+            address = t
+            note = self.contacts['saved'][t]
+            if len(note) == 1:
+                note = note[0]
+            self.ids.saved_cont.add_widget(MDFlatButton(id=address, text=note[:10], on_release=foo))
+            self.ids.saved_cont.add_widget(MDFlatButton(id=address,text=address, on_release=foo))
+        for txhash in self.contacts['recent']:
+            tx = self.aqua.gettransaction(txhash)
+            log.info(f"Loading recent tx: {tx}")
+            if 'to' in tx:
+                dest_address = tx['to']
+                amount = self.aqua.from_wei(int(tx['value'], 16))
+                c += 1
+
+                self.ids.recent_cont.add_widget(MDFlatButton(text=str(amount)+' AQUA'))
+                self.ids.recent_cont.add_widget(MDFlatButton(id=tx['hash'],text=dest_address, on_release=foo_tx))
+
+    def popup_acct(self, acct):
+        grid = GridLayout(cols=1, size_hint_y=None)
+        dialog = MDDialog(title='Account %s' % acct['Address'],
+                          content=grid,
+                          size_hint= (.8,.8),
+                          auto_dismiss=True,
+                          )
+        log.info('acct: %s', acct)
+        txt = ''
+        grid2 = GridLayout(cols=3, spacing=dp(10))
+
+        for text in acct:
+            if text in ['Address', 'Balance', 'Type']:
+                txt = str(acct[text])
+            else:
+                raise Exception("unknown field: %s" % text)
+            foolabel = MDLabel(id=txt,text=f'{text}: {txt}', font_style='Subhead', bold=True)
+            grid.add_widget(foolabel)
+
+        if acct['Type'] == 'contact':
+            pub = acct['Address']
+            note = self.contacts['saved'][pub]
+            if len(note) == 1:
+                note = note[0]
+            grid.add_widget(MDLabel(text='Note: '+note, font_style='Subhead', bold=True))
+
+        grid.add_widget(grid2)
+        # callbacks
+        def copy2clip(instance):
+            Clipboard.copy(acct['Address'])
+            Snackbar("Copied to clipboard!").show()
+        def coinbasesetter(instance):
+            pub = acct['Address']
+            self.set_coinbase(pub)
+            Snackbar(f'New coin base: {pub}', duration=3).show()
+        def send(instance):
+            pub = acct['Address']
+            self.ids.send_addr.text = pub
+            self.switch_view('send', 'up')
+            dialog.dismiss()
+        def remove(instance):
+            pub = acct['Address']
+            if pub in self.contacts['saved']:
+                del(self.contacts['saved'][pub])
+                self.write_contacts_file()
+                self.build_address_book()
+                Snackbar("removed contact").show()
+            else:
+                Snackbar("could not find contact").show()
+            dialog.dismiss()
+        def update_contact(instance):
+            pub = acct['Address']
+            note = self.contacts['saved'][pub]
+            if len(note) == 1:
+                note = note[0]
+            self.popup_editcontact(pub=pub, note=note)
+
+        foobtn = MDRaisedButton(text='Copy to clipboard', on_release=copy2clip)
+
+
+        grid2.add_widget(foobtn)
+        foobtn3 = MDRaisedButton(text='Send TX', on_release=send)
+        grid2.add_widget(foobtn3)
+        if acct['Type'] == 'contact':
+            foobtn3 = MDRaisedButton(text='Remove Contact', on_release=remove)
+            grid2.add_widget(foobtn3)
+            grid2.add_widget(MDRaisedButton(text='Edit', on_release=update_contact))
+        elif acct['Type'] == 'personal':
+            foobtn2 = MDRaisedButton(text='Set Coinbase', on_release=coinbasesetter)
+            grid2.add_widget(foobtn2)
+
+        dialog.open()
+
+    def popup_block(self, block):
+        content = GridLayout(cols=2, size_hint_y=None, row_default_height=20)
+        log.info('BLOCK: %s', block)
+        if isinstance(block, Exception):
+            Snackbar(f'Error: {block}').show()
+            return
+        for text in block:
+            txt = StringProperty("")
+            if text in ['transactions', 'uncles']:
+                txt = str(len(block[text]))
+            elif text in ['version']:
+                txt = str(block[text])
+            elif text in ['extraData']:
+                try:
+                    txt =  binascii.unhexlify(block[text][2:]).decode("utf-8")
+                except Exception as e:
+                    log.debug("got error decoding extradata: %s", e)
+                    txt = block[text][:10]+'...'
+            elif text in ['gasLimit', 'gasUsed', 'nonce', 'transactionIndex', 'difficulty', 'number', 'totalDifficulty']:
+                txt = str(int(block[text], 16))
+            elif text in ['size']:
+                txt = str(int(block[text], 16)) + " bytes"
+            elif text in ['timestamp']:
+                txt = datetime.datetime.fromtimestamp(int(block['timestamp'], 16)).strftime('%Y-%m-%d %H:%M:%S')
+            elif text in ['hash', 'mixHash', 'parentHash', 'transactionsRoot', 'logsBloom', 'miner', 'receiptsRoot', 'sha3Uncles', 'stateRoot']:
+                txt = block[text][:10]
+            else:
+                raise Exception("unknown field: %s" % text)
+
+            foo = MDLabel(text=("%s: " % text + "%s" % txt), font_style='Subhead', bold=True)
+            content.add_widget(foo)
+        dialog = MDDialog(title='Block number %s' % int(block['number'], 16),
+            content=content,
+            size_hint=(.75, .6),
+            auto_dismiss=True,
+            )
+        dialog.open()
+
+    def popup_tx(self, tx):
+        content = GridLayout(cols=2, size_hint_y=None, row_default_height=20)
+        log.info('TX: %s', tx)
+        for text in tx:
+            txt = StringProperty("")
+            if text in ['gas', 'nonce', 'transactionIndex', 'blockNumber', 'v']:
+                txt = str(int(tx[text][2:], 16))
+            elif text in ['input']:
+                l = len(tx[text])
+                txt = f'contract: {l} bytes' if l > 2 else 'empty'
+            elif text in ['size']:
+                txt = str(int(tx[text], 16)) + " bytes"
+            elif text in ['timestamp']:
+                txt = datetime.datetime.fromtimestamp(int(tx['timestamp'], 16)).strftime('%Y-%m-%d %H:%M:%S')
+            elif text in ['blockHash', 'from', 'to', 'r', 's', 'hash']:
+                txt = tx[text][:10]
+            elif text in ['value']:
+                txt = str(self.aqua.from_wei(int(tx[text], 16))) + " AQUA"
+            elif text in ['gasPrice']:
+                txt = str(self.aqua.from_wei(int(tx[text], 16), denom='gwei')) + " gwei"
+            else:
+                raise Exception("unknown field: %s" % text)
+
+            foo = MDLabel(text=f'{text}: {txt}', font_style='Subhead')
+            content.add_widget(foo)
+        dialog = MDDialog(title='Transaction: %s' % tx['hash'][:40],
+            content=content,
+            size_hint=(.75, .45),
+            auto_dismiss=True,
+
+            )
+        dialog.open()
+
+    # get blockchain sample
+    def getHistory(self, start=0, limit=10):
+        if 'number' in self.head:
+            height = int(self.head['number'], 16)-start
+            if limit > height:
+                limit = height
+            log.info("get history from height: %s", height)
+            l = len(self.ids.container1.children)
+            if l == 0:
+                undef = '' # placeholder str
+                log.info("generating history widgets")
+                self.ids.container1.add_widget(MDFlatButton(text='Block'))
+                self.ids.container1.add_widget(MDFlatButton(text='Hash'))
+                self.ids.container1.add_widget(MDFlatButton(text='Difficulty'))
+                self.ids.container1.add_widget(MDFlatButton(text='Miner'))
+                self.ids.container1.add_widget(MDFlatButton(text='Tx'))
+                self.ids.container1.add_widget(MDFlatButton(text='Timing'))
+                for i in range(limit):
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+                    self.ids.container1.add_widget(MDFlatButton(on_release=lambda btn: self.popup_block(self.aqua.getblockbyhash(btn.id)), text=f"{undef} {i}"))
+            else:
+                log.info("already have history widgets: %s", len(self.ids.container1.children))
+
+            if len(self.ids.hist_tx.children) == 0:
+                self.ids.hist_tx.add_widget(MDFlatButton(id='status', text='Status', bold=True))
+                self.ids.hist_tx.add_widget(MDFlatButton(id='txhash', text='hash', bold=True))
+                self.ids.hist_tx.add_widget(MDFlatButton(id='timestamp', text='time', bold=True))
+                for i in range(30):
+                    log.debug(f'{i} widget is {len(self.ids.hist_tx.children)}')
+                    self.ids.hist_tx.add_widget(MDFlatButton(text = f'{undef}',
+                                                            on_release=lambda btn: self.popup_tx(self.aqua.gettransaction(btn.id)),
+                                                             bold = True))
+                    # txhash
+                    self.ids.hist_tx.add_widget(MDFlatButton(on_release=lambda btn: self.popup_tx(self.aqua.gettransaction(btn.id))))
+                    # time
+                    self.ids.hist_tx.add_widget(MDFlatButton(on_release=lambda btn: self.popup_tx(self.aqua.gettransaction(btn.id))))
+            ltx = len(self.ids.hist_tx.children)
+            oldheader = self.head
+            h = self.head
+
+            if 'hash' in self.block_cache[0] and h['hash'] == self.block_cache[0]['hash']:
+                return
+
+            self.block_cache[0] = h
+
+            l-=7
+            it = 1
+            for i in range(limit): # range most recent X blocks
+                if i > 0:
+                    h = self.aqua.getblock(height-i)
+                    # self.block_cache[i] = h
+                if 'number' in h:
+                    log.debug("setting widget text: %s (%s)", h['hash'], i)
+                    self.ids.container1.children[l-((i*5)+i)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i+1)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i+2)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i+3)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i+4)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i+5)].id = h['hash']
+                    self.ids.container1.children[l-((i*5)+i)].text = str(int(h['number'], 16))
+                    self.ids.container1.children[l-((i*5)+i+1)].text = h['hash'][:8]
+                    self.ids.container1.children[l-((i*5)+i+2)].text = str(int(h['difficulty'], 16))
+                    self.ids.container1.children[l-((i*5)+i+3)].text = h['miner'][:8]
+                    self.ids.container1.children[l-((i*5)+i+4)].text = str(len(h['transactions']))
+                    # calc timing
+                    parent_timestamp = int(oldheader['timestamp'],16)
+                    timestamp = int(h['timestamp'], 16)
+                    timing = str(parent_timestamp-timestamp)
+                    if timing == "0":
+                        timing = "latest"
+                    oldheader = h
+                    self.ids.container1.children[l-((i*5)+i+5)].text = timing
+
+
+                    # tx
+                    txs = h['transactions']
+                    statustext = 'Confirmed '+ '('+ str(i)+')'
+                    if i == 0:
+                        statustext = 'unconfirmed'
+
+                    for t in txs: # for each tx in this block
+                        # status
+                        if ltx < (it+3+2):
+                            break
+                        self.ids.hist_tx.children[ltx-(it+3)].text = statustext
+                        self.ids.hist_tx.children[ltx-(it+3)].id=t['hash']
+                        self.ids.hist_tx.children[ltx-(it+3+1)].text = t['hash'][:20]
+                        self.ids.hist_tx.children[ltx-(it+3+1)].id=t['hash']
+                        timefmt = datetime.datetime.fromtimestamp(int(h['timestamp'], 16)).strftime('%Y-%m-%d %H:%M:%S')
+                        self.ids.hist_tx.children[ltx-(it+3+2)].text = timefmt
+                        self.ids.hist_tx.children[ltx-(it+3+2)].id=t['hash']
+                        it += 3
+                if i == height:
+                    break
+            log.info("showing recent blockchain")
+
+
+    def lock(self):
+        self.coinbase = ''
+        self.balances = {}
+        self.addresses = []
+        self.balance = 0.0
+        # # self.keystore.directory = ''
+        self.mkeys = []
+        self.ids.send_addr.text = ''
+        # self.ids.unlock.text = ''
+        # self.ids.unlock1.text = ''
+        self.ids.amount.text = ''
+        # self.ids.seedlabel.text = ''
+        self.switch_view('welcome', direction='left')
+        Snackbar('Accounts Cleared').show()
+
+    # fill account chooser menu (address and balance)
+    def fillMenu(self):
+        self.ids.newlist.clear_widgets()
+        dropdown = DropDown()
+        accounts = []
+        if len(self.addresses) > 0:
+            for acct in self.aqua.getaccounts():
+                accounts.append(acct)
+        for acct in self.balances:
+            accounts.append(acct)
+        # check no accounts
+        if len(accounts) < 1:
+            log.error("no accounts found. you must create a new account.")
+            self.choose_account = []
+            return
+        # check already filled
+
+        # if len(self.choose_account) == len(accounts):
+        #     log.debug("already filled, not refilling menu")
+        #     return
+
+        self.refresh_balance()
+        self.choose_account = []
+        # fill menu chooses coinbase
+        log.info("fillMenu() filling with %s accounts: %s", len(accounts), accounts)
+        i = 0
+        for account in accounts:
+            log.debug(account)
+            if account in self.balances:
+                bal = self.balances[account]
+            else:
+                bal = self.aqua.getbalance(account)
+            listitem = Button(halign='left',background_normal = '',
+                              background_color=self.root.theme_cls.primary_color,
+                              text=str(i+1)+ ':' + ' ' + str(account[:20]) + '\t\tBalance:' + str(bal),
+                              size_hint=(1,None),
+                              height=dp(50))
+
+
+            listitem.bind(on_release=lambda listitem: dropdown.select(listitem.text))
+            # listitem.bind(on_release=self.updateqr(account))
+
+            dropdown.add_widget(listitem)
+            i = i+1
+        mainbutton = TwoLineListItem(text='Coinbase (click to change)',
+                                     secondary_text='Select Account' if self.coinbase == '' else self.coinbase,
+                                     font_style='Subhead',
+                                     secondary_font_style='Title')
+
+        def doit(y):
+            setattr(mainbutton, 'secondary_text', y)
+            pubsearch = y.split(" ")[1][:8]
+            for addr in self.balances:
+                if pubsearch in addr:
+                    log.info("yes %s in %s", pubsearch, addr)
+                    self.set_coinbase(addr)
+                    return
+                else:
+                    log.info("not %s in %s", pubsearch, addr)
+            for addr in self.addresses:
+                if pubsearch in addr:
+                    log.info("yes %s in %s", pubsearch, addr)
+                    self.set_coinbase(addr)
+                    return
+                else:
+                    log.info("not %s in %s", pubsearch, addr)
+
+            log.error("skipping %s", addr)
+
+
+        mainbutton.bind(on_release=dropdown.open)
+        # mainbutton.bind(on_release=self.fillMenu())
+
+        dropdown.bind(on_select=lambda instance, x: doit(x))
+        self.ids.newlist.add_widget(mainbutton)
+
+    def blockchain_search(self):
+        self.ids.blockchain_search_content.clear_widgets()
+        query = self.ids.blockchain_search_query.text
+        self.ids.blockchain_search_query.text = ''
+        if len(query) == 42:
+            # address
+            try:
+                balance = self.aqua.getbalance(query)
+                self.popup_acct({'Address': query, 'Balance': balance, 'Type': 'search'})
+                return
+            except Exception as e:
+                log.error("cant convert query to int: %s", e)
+                return
+
+        elif len(query) == 66:
+            # tx
+            tx = self.aqua.gettransaction(query)
+            if 'from' in tx:
+                self.popup_tx(tx)
+                return
+
+        elif len(query) < 12:
+            # maybe block number
+            try:
+                i = int(query)
+                block = self.aqua.getblock(i)
+                self.popup_block(block)
+            except Exception as e:
+                log.error("cant convert query to int: %s", e)
+            return
+
+        widget = MDLabel(text='nothing found')
+        self.ids.blockchain_search_content.add_widget(widget)
+
+    def viewonly(self):
+        self.ids.viewonly.clear_widgets()
+        container = ScrollView(do_scroll_x=False)
+        grid = GridLayout(cols=3, size_hint=(None,None))
+        self.ids.viewonly.add_widget(container)
+        container.add_widget(grid)
+        accounts = []
+        i=0
+        for acct in self.addresses:
+            accounts.append(acct)
+        for acct in self.balances:
+            accounts.append(acct)
+        for account in accounts:
+            log.error(account)
+            number = MDFlatButton(text=str(i+1))
+            address = MDFlatButton(text=str(account[:20]))
+            balance = MDFlatButton(text=str(self.balances[account]))
+
+            grid.add_widget(number)
+            grid.add_widget(address)
+            grid.add_widget(balance)
+            address.bind(on_release=self.updateqr(account))
+            i = i+1
+
+
+
+# application window specific
+class AquachainApp(App):
+    title = 'Aquachain Wallet'
+    icon = 'img/a100.png'
+    theme_cls = ThemeManager()
+    config = Config
+    use_kivy_settings = True
+    config.setdefaults( aquaconf, aquasettings.default_settings)
+    aq = None
+    theme_cls.primary_palette = 'Teal'
+    theme_cls.primary_hue = '400'
+    # theme_cls.primary_dark_hue = '900'
+    theme_cls.accent_palette = 'LightBlue'
+    theme_cls.accent_hue = '400'
+    # theme_cls.main_background_color = 'Grey 900'
+    MDLabel.theme_text_color = 'Primary'
+    Toolbar.specific_secondary_text_color = theme_cls.primary_color
+
+    def on_pause(self):
+        print("locking wallet")
+        self.aq.lock()
+        return True
+
+    def on_resume(self):
+        pass
+
+    def get_application_config(self):
+        return super(AquachainApp, self).get_application_config(
+            os.path.expanduser('~/.aquachain/aquaconfig.ini'))
+
+    def build(self):
+        # read settings
+        self.config.read(self.get_application_config())
+        self.settings_cls = SettingsWithSidebar
+
+        # fix this
+        self.aq = Aquachain(self)
+        #self.aq.aqua = self.aq.aqua = AquaTool(ipcpath=self.config.get(aquaconf, 'ipcpath'), rpchost=self.config.get(aquaconf, 'rpchost'))
+        #self.aq.config = self.config
+
+        # theme
+        self.theme_cls.theme_style = self.config.get(aquaconf, 'Theme')
+        return self.aq
+
+    def build_config(self, config):
+        self.config.adddefaultsection(aquaconf)
+        for config_field in aquasettings.default_settings:
+            self.config.set(aquaconf, config_field, aquasettings.default_settings[config_field])
+            log.info(f"setting {config_field}: {aquasettings.default_settings[config_field]}")
+        #config.setdefaults(aquaconf, aquasettings.default_settings)
+
+    def build_settings(self, settings):
+        self.config.read(self.get_application_config())
+        settings.add_json_panel(aquaconf,
+            self.config,
+        data=aquasettings.settings_json)
+
+
+    def on_config_change(self, config, section, key, value):
+        if config is self.config:
+            log.info("config changed: %s[%s] = \"%s\"", section, key, value)
+            if section == aquaconf:
+                if key == "rpchost":
+                    self.aq.aqua = AquaTool(ipcpath=self.config.get(aquaconf, 'ipcpath'), rpchost=self.config.get(aquaconf, 'rpchost'))
+                    #self.aq.setrpc(self.config.get(aquaconf, 'rpchost'))
+                if key == "Theme":
+                    self.theme_cls.theme_style = self.config.get(aquaconf, 'Theme')
+                if key == "ipcpath":
+                    self.config.set(aquaconf, 'ipcpath', os.path.expanduser(value))
+                    log.info("resolved ipc path to %s", self.config.get(aquaconf, 'ipcpath'))
+                    self.aq.aqua = AquaTool(ipcpath=self.config.get(aquaconf, 'ipcpath'), rpchost=self.config.get(aquaconf, 'rpchost'))
+                if key == 'blocklimit':
+                    self.aq.getblock_cache()
+                if key == 'hdwallets':
+                    self.aq.get_coinbase_view()
+                if key == 'noderefresh':
+                    log.info("refreshing clock")
+                    self.aq.clock.cancel()
+                    self.aq.clock = Clock.schedule_interval(self.aq.refresh, float(value))
+                if key == 'keystore':
+                    self.aq.keystore.directory = os.path.expanduser(value)
+            self.config.write()
+        else:
+            log.error("config error")
+
+
+# run program
+if __name__ == '__main__':
+    p = Popen(["aquachain", "-vmodule", "good", "-fast","daemon"])
+    try:
+        AquachainApp().run()
+    except Exception as e:
+        log.error("fatal: %s", e)
+        p.terminate()
+        raise
+    p.terminate()

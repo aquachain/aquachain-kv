@@ -1,0 +1,469 @@
+#:import Toolbar kivymd.toolbar.Toolbar
+#:import ThemeManager kivymd.theming.ThemeManager
+#:import MDNavigationDrawer kivymd.navigationdrawer.MDNavigationDrawer
+#:import NavigationLayout kivymd.navigationdrawer.NavigationLayout
+#:import NavigationDrawerDivider kivymd.navigationdrawer.NavigationDrawerDivider
+#:import NavigationDrawerToolbar kivymd.navigationdrawer.NavigationDrawerToolbar
+#:import NavigationDrawerSubheader kivymd.navigationdrawer.NavigationDrawerSubheader
+#:import MDCheckbox kivymd.selectioncontrols.MDCheckbox
+#:import MDSwitch kivymd.selectioncontrols.MDSwitch
+#:import MDList kivymd.list.MDList
+#:import OneLineListItem kivymd.list.OneLineListItem
+#:import TwoLineListItem kivymd.list.TwoLineListItem
+#:import ThreeLineListItem kivymd.list.ThreeLineListItem
+#:import OneLineAvatarListItem kivymd.list.OneLineAvatarListItem
+#:import OneLineIconListItem kivymd.list.OneLineIconListItem
+#:import OneLineAvatarIconListItem kivymd.list.OneLineAvatarIconListItem
+#:import MDTextField kivymd.textfields.MDTextField
+#:import TextInput kivy.uix.textinput
+#:import Dropdown kivy.uix.dropdown
+#:import MDCard kivymd.card.MDCard
+#:import MDSeparator kivymd.card.MDSeparator
+#:import get_color_from_hex kivy.utils.get_color_from_hex
+#:import colors kivymd.color_definitions.colors
+#:import MDTabbedPanel kivymd.tabs.MDTabbedPanel
+#:import MDTab kivymd.tabs.MDTab
+#:import MDProgressBar kivymd.progressbar.MDProgressBar
+#:import MDThemePicker kivymd.theme_picker.MDThemePicker
+#:import MDBottomNavigation kivymd.tabs.MDBottomNavigation
+#:import Snackbar kivymd.snackbar.Snackbar
+#:import MDBottomNavigationItem kivymd.tabs.MDBottomNavigationItem
+#:import m_res kivymd.material_resources
+#:import MDDropdownMenu kivymd.menu.MDDropdownMenu
+#:import Clipboard kivy.core.clipboard.Clipboard
+#:import QRCodeWidget kivy.garden.qrcode
+
+<Aquachain>:
+    BoxLayout:
+        elevation: 0
+        orientation: 'horizontal'
+        BoxLayout:
+            elevation: 8
+            orientation: 'vertical'
+            size_hint_x: 30
+            md_bg_color: app.theme_cls.primary_color
+            background_palette: 'Primary'
+            background_hue: '500'
+            ScrollView:
+                do_scroll_x: False
+                GridLayout:
+                    cols: 1
+                    BoxLayout:
+                        orientation: 'vertical'
+                        pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                        size_hint_y:10
+                        Image:
+                            source: 'img/aquachainx5.png'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: 15
+
+                        MDList:
+                            TwoLineIconListItem:
+                                id: block
+                                text: ""
+                                secondary_text: "Current block"
+                                on_release:
+                                    root.popup_block(root.head)
+                                    # root.getHistory()
+                                ListIconLeft:
+                                    id:li_icon_1
+                                    icon: 'emby'
+
+                            TwoLineIconListItem:
+                                id: balance
+                                text: ""
+                                secondary_text: "Total Balance"
+                                font_style: 'Body1'
+                                on_release:
+                                    self.text = root.toggle_display_balance(self.text)
+                                ListIconLeft:
+                                    id: li_icon_2
+                                    icon: 'eye-off' if root.ids.balance.text == 'Click to Show' else 'eye'
+                    MDSeparator:
+                    BoxLayout:
+                        size_hint_y: 33
+                        ScrollView:
+                            do_scroll_x: False
+
+                            MDList:
+                                OneLineIconListItem:
+                                    text: "My Wallets"
+                                    bold: True
+                                    halign: "center"
+                                    on_release:
+                                        root.switch_view('coinbasechooser', 'up')
+
+                                    ListIconLeft:
+                                        id: li_icon_3
+                                        icon: 'fish'
+                                        secondary_text_color: 'Accent'
+                                OneLineIconListItem:
+                                    text: "Send/Transfer"
+                                    bold: True
+                                    on_release:
+                                        root.switch_view('send', 'up')
+                                        # root.ids.send_chooser.secondary_text = root.coinbase
+                                    ListIconLeft:
+                                        id: li_icon_1
+                                        icon: 'arrow-right-bold-circle-outline'
+                                OneLineIconListItem:
+                                    text: "Address List"
+                                    bold: True
+                                    on_release:
+                                        root.switch_view('addresses', 'down')
+                                    ListIconLeft:
+                                        id: li_icon_3
+                                        icon: 'contact-mail'
+                                        secondary_text_color: 'Accent'
+                                MDSeparator:
+                                OneLineIconListItem:
+                                    text: "Blockchain"
+                                    bold: True
+                                    on_release:
+                                        root.switch_view('blockchain', 'left')
+                                    ListIconLeft:
+                                        id: li_icon_2
+                                        icon: 'cube-outline'
+
+
+
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_x: 90
+            BoxLayout:
+                orientation: 'vertical'
+                Toolbar:
+                    id: toolbar
+                    md_bg_color: app.theme_cls.primary_color
+                    background_palette: 'Primary'
+                    background_hue: '500'
+                    right_action_items: [['settings', lambda x: app.open_settings()], ['lock' if root.ids.scr_mngr.current == 'welcome' else 'lock-open-outline', lambda x: root.lock()],['home', lambda x: root.switch_view('welcome', 'left')]]
+                ScreenManager:
+                    id: scr_mngr
+                    Screen:
+                        name: 'welcome'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            padding: dp(50)
+                            spacing: 20
+                            MDCard:
+                                padding: dp(25)
+                                GridLayout:
+                                    cols: 1
+                                    MDLabel:
+                                        text: 'Welcome to your Aquachain wallet'
+                                        secondary_text: 'You have no wallets on this device'
+                                        font_style: "Headline"
+                                        halign: 'center'
+                                    MDSeparator:
+                                    MDLabel:
+                                        pos_hint: {'center_x': 0.5, 'center_y': 1}
+                                        text: 'How would you like to proceed?'
+                                        # size: 3 * dp(48), dp(48)
+                                        font_style: "Subhead"
+                                        halign: 'center'
+                                    BoxLayout:
+                                        spacing: -dp(100)
+                                        MDCheckbox:
+                                            id: account_use_file
+                                            group: 'seedaction'
+                                            active: True
+                                        MDLabel:
+                                            text: "Load Local"
+                                            font_style: "Subhead"
+                                    BoxLayout:
+                                        spacing: -dp(100)
+                                        MDCheckbox:
+                                            id: account_use_node
+                                            group: 'seedaction'
+                                        MDLabel:
+                                            text: "Aquachain node"
+                                            font_style: "Subhead"
+                                    BoxLayout:
+                                        spacing: -dp(100)
+                                        MDCheckbox:
+                                            id: account_use_import
+                                            group: 'seedaction'
+                                        MDLabel:
+                                            text: "Import seed"
+                                            font_style: "Subhead"
+                                    BoxLayout:
+                                        spacing: -dp(100)
+                                        MDCheckbox:
+                                            id: account_use_new
+                                            group: 'seedaction'
+                                        MDLabel:
+                                            text: "Create new seed"
+                                            font_style: "Subhead"
+                                    BoxLayout:
+                                    MDSeparator:
+                                    BoxLayout:
+                                        BoxLayout:
+                                        BoxLayout:
+                                        BoxLayout:
+                                            spacing: 10
+                                            MDFlatButton:
+                                                text: "View only"
+                                                on_release: root.open_account(viewonly=True)
+                                        BoxLayout:
+                                            spacing: 10
+                                            MDRaisedButton:
+                                                text: "Unlock"
+                                                on_release: root.open_account(viewonly=False)
+                    Screen:
+                        name: 'send'
+                        ScrollView:
+                            do_scroll_x: False
+                            BoxLayout:
+                                orientation: 'vertical'
+                                size_hint_y: 1
+                                height: self.minimum_height
+                                padding: (self.width/8), (self.height/8)
+                                # spacing: 20
+                                MDCard:
+                                    orientation: 'vertical'
+                                    MDList:
+                                        valign: 'top'
+                                        padding: 0,0
+                                        id:newlist
+                                    MDTabbedPanel:
+                                        MDTab:
+                                            text: "Send"
+                                            BoxLayout:
+                                                orientation: 'vertical'
+                                                BoxLayout:
+                                                    padding: dp(25)
+                                                    MDTextField:
+                                                        id: send_addr
+                                                        valign: 'top'
+                                                        hint_text: "Destination Address"
+                                                        helper_text: "Not a correct address. Please enter a correct wallet address."
+                                                        required: True
+                                                        max_text_length: 42
+                                                        helper_text_mode: "on_error"
+                                                        color_mode: 'custom'
+                                                        line_color_focus: self.theme_cls.opposite_bg_normal
+                                                BoxLayout:
+                                                    padding: dp(70)
+                                                    MDTextField:
+                                                        id: amount
+                                                        hint_text: "Amount"
+                                                        helper_text: "Please enter the amount you would like to send"
+                                                        helper_text_mode: "on_focus"
+                                                BoxLayout:
+                                                    orientation: 'horizontal'
+                                                    BoxLayout:
+                                                    BoxLayout:
+                                                    BoxLayout:
+                                                        padding: dp(25)
+                                                        MDRaisedButton:
+                                                            icon: 'arrow-right-bold'
+                                                            halign: 'right'
+                                                            text: 'Send'
+                                                            on_release:
+                                                                root.sendCoin(root.coinbase, send_addr.text, amount.text)
+
+                                        MDTab:
+                                            name: 'qrcode'
+                                            text: 'QR Code'
+                                            BoxLayout:
+                                                orientation: 'vertical'
+                                                padding: (self.width/10), (self.height/10)
+                                                height: self.minimum_height
+                                                MDCard:
+                                                    size: self.parent.size
+                                                    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                                                    BoxLayout:
+                                                        orientation: 'horizontal'
+                                                        BoxLayout:
+                                                            padding: 15,15
+                                                            QRCodeWidget:
+                                                                show_border: False
+                                                                id: qr
+                                                                data: ''
+                    Screen:
+                        name:'addresses'
+                        BoxLayout:
+                            padding: (self.width/11), (self.height/11)
+                            height: self.minimum_height
+                            MDCard:
+                                orientation: 'vertical'
+                                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                                MDTabbedPanel:
+
+                                    MDTab:
+                                        name:'contacts'
+                                        id: contacts
+                                        text: 'Saved'
+                                        ScrollView:
+                                            size: (self.parent.width, self.parent.height)
+                                            scroll_type: ['content', 'bars']
+                                            size_hint: (None, 1)
+                                            GridLayout:
+                                                size_hint: 1, None
+                                                height: self.minimum_height
+                                                cols:2
+                                                padding: 0
+                                                spacing: -10
+                                                # size_hint_y: 1
+                                                # row_default_height:40
+                                                id: saved_cont
+                                                MDFlatButton:
+                                                    id: name
+                                                    text:'Name'
+                                                    bold: True
+                                                MDFlatButton:
+                                                    id: address
+                                                    text:'Address'
+                                                    bold: True
+                                        BoxLayout:
+                                            size_hint_y: .15
+                                            orientation: 'horizontal'
+                                            MDIconButton:
+                                                id: add_contact
+                                                icon: 'plus'
+                                                on_release: root.popup_addcontact()
+
+
+                                    MDTab:
+                                        name: 'recent'
+                                        id: recent
+                                        text: 'Recent Tx'
+                                        ScrollView:
+                                            size: (self.parent.width, self.parent.height)
+                                            scroll_type: ['content', 'bars']
+                                            size_hint: (None, 1)
+                                            GridLayout:
+                                                size_hint: 1, None
+                                                height: self.minimum_height
+                                                cols:2
+                                                padding: 0
+                                                spacing: -10
+                                                # size_hint_y: 1
+                                                # row_default_height:40
+                                                id: recent_cont
+                                                orientation: 'vertical'
+
+                    Screen:
+                        name:'blockchain'
+                        BoxLayout:
+                            padding: (self.width/11), (self.height/11)
+                            height: self.minimum_height
+                            MDCard:
+                                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                                MDTabbedPanel:
+                                    MDTab:
+                                        name:'blocktab'
+                                        id: blocktab
+                                        text: 'Blockchain'
+                                        ScrollView:
+                                            size: (self.parent.width, self.parent.height)
+                                            scroll_type: ['content', 'bars']
+                                            size_hint: (None, 1)
+                                            GridLayout:
+                                                size_hint: 1, None
+                                                height: self.minimum_height
+                                                cols:6
+                                                padding: 0
+                                                spacing: -20 ,-10
+                                                # size_hint_y: 1
+                                                # row_default_height:40
+                                                id: container1
+                                                orientation: 'vertical'
+                                    MDTab:
+                                        name: 'histtab'
+                                        id: histtab
+                                        text: 'Tx History'
+                                        ScrollView:
+                                            size: (self.parent.width, self.parent.height)
+                                            scroll_type: ['content', 'bars']
+                                            size_hint: (None, 1)
+                                            GridLayout:
+                                                size_hint: 1, None
+                                                height: self.minimum_height
+                                                cols:3
+                                                padding: 0
+                                                spacing: -10
+                                                # size_hint_y: 1
+                                                # row_default_height:40
+                                                id: hist_tx
+                                                orientation: 'vertical'
+                                    MDTab:
+                                        name: 'searchtab'
+                                        id: histtab
+                                        text: 'Search'
+                                        ScrollView:
+                                            size: (self.parent.width, self.parent.height)
+                                            scroll_type: ['content', 'bars']
+                                            size_hint: (None, 1)
+                                            GridLayout:
+                                                cols: 1
+                                                TextInput:
+                                                    id: blockchain_search_query
+                                                    helper_text: 'Block hash, TX hash, or public address'
+                                                    multiline: False
+                                                    on_text_validate: root.blockchain_search()
+                                                    size_hint: 1, None
+                                                MDFlatButton:
+                                                    text: 'Search!'
+                                                    on_release: root.blockchain_search()
+                                                GridLayout:
+                                                    height: self.minimum_height
+                                                    cols:3
+                                                    padding: 0
+                                                    spacing: -10
+                                                    id: blockchain_search_content
+                                                    orientation: 'vertical'
+
+                    Screen:
+                        name: 'coinbasechooser'
+                        id: coinbasechooser
+                        BoxLayout:
+                            padding: (self.width/8), (self.height/8)
+                            MDCard:
+                                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                                MDTabbedPanel:
+                                    MDTab:
+                                        name:'coinbasetab'
+                                        id: coinbasetab
+                                        text: 'HD'
+                                        ScrollView:
+                                            do_scroll_x: False
+                                            bar_width: 10
+                                            scroll_type: ['content', 'bars']
+                                            size: self.parent.width, self.parent.height
+                                            size_hint: (1, None)
+                                            GridLayout:
+                                                size_hint_y: None
+                                                spacing: -15, -10
+                                                # size_hint_x: 0.8
+                                                height: self.minimum_height
+                                                #halign: 'center'
+                                                #padding: dp(16)
+                                                cols:3
+                                                # row_default_height: dp(30)
+                                                id: cbasegrid
+                                                #orientation: 'vertical'
+                                    MDTab:
+                                        name: 'coinbasetab2'
+                                        id: 'coinbasetab2'
+                                        text: 'RPC'
+                                        ScrollView:
+                                            do_scroll_x: False
+                                            bar_width: 10
+                                            scroll_type: ['content', 'bars']
+                                            size: self.parent.width, self.parent.height
+                                            size_hint: (1, None)
+                                            GridLayout:
+                                                size_hint_y: None
+                                                spacing: -15, -10
+                                                # size_hint_x: 0.8
+                                                height: self.minimum_height
+                                                #halign: 'center'
+                                                #padding: dp(16)
+                                                cols:3
+                                                # row_default_height: dp(30)
+                                                id: cbasegrid2
+                                                #orientation: 'vertical'
