@@ -66,7 +66,10 @@ from kivymd.textfields import MDTextField
 from kivy.core.clipboard import Clipboard
 
 import time
-Builder.load_file('aquachain/aquachain.kv')
+
+aquachain_assets = '/usr/local/aquachain' # linux
+
+Builder.load_file(os.path.join(aquachain_assets, 'aquachain.kv'))
 
 aquaconf = 'Aquachain' # the string
 
@@ -1090,7 +1093,9 @@ class Aquachain(BoxLayout):
 # application window specific
 class AquachainApp(App):
     title = 'Aquachain Wallet'
-    icon = 'img/a100.png'
+    icon = os.path.join(aquachain_assets, 'aquachain.png')
+    if not os.path.exists(icon):
+        raise Exception("wtf: "+icon)
     theme_cls = ThemeManager()
     config = Config
     use_kivy_settings = True

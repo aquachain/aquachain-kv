@@ -25,8 +25,13 @@ help:
 	@printf '\tmake clean\n\n'
 	@printf '\tmake install\n\n'
 
-install:
+install-user:
 	python3 setup.py install --user
+
+install:
+	python3 setup.py install 
+	python3 setup.py install_data
+
 
 onetest:
 	python3 -m tests.test_keystore Test_Keystore.test_loadphrase
