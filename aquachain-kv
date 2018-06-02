@@ -543,8 +543,10 @@ class Aquachain(BoxLayout):
             log.info("sending transaction (RPC): (%s) %s", fromwallet, tx)
             try:
                 txhash = self.aqua.w3.personal.sendTransaction(tx, passphrase)
+                if isinstance(txhash, Exception):
+                    Snackbar('Transaction Failed', duration=1).show()
+                    raise txhash
                 log.info("Submitted TX: %s", txhash)
-                log.info("send successfully wtf yo")
                 self.addRecent(f'{txhash.hex()}')
                 self.popup_contacts(tx['to'])
                 Snackbar(text="Transaction Sent: %s" % txhash.hex()).show()
@@ -558,6 +560,9 @@ class Aquachain(BoxLayout):
                 rawtx = self.aqua.sign_tx(self.private_keys[fromwallet], tx)
                 log.info("Raw Signed TX: %s", rawtx)
                 txhash = self.aqua.send_raw_tx(rawtx)
+                if isinstance(txhash, Exception):
+                    Snackbar('Transaction Failed', duration=1).show()
+                    raise txhash
                 log.info("Submitted TX: %s", txhash)
                 Snackbar(text="Transaction Sent: %s" % txhash).show()
                 self.addRecent(txhash)
@@ -660,7 +665,7 @@ class Aquachain(BoxLayout):
 
     def addContact(self, pub, note='', overwrite=False):
         if not overwrite and pub in self.contacts['saved']:
-            Snackbar(text=f'{pub[:10]} already in address book', duration=3).show()
+            Snackbar(text=f'{pub[:10]} already in address book', duration=1).show()
         else:
             self.contacts['saved'][f'{pub}'] = note
             try:
@@ -669,18 +674,22 @@ class Aquachain(BoxLayout):
                 log.error("error writing file: %s", e)
                 Snackbar(text=f"error: {e}")
                 return
-    def addRecent(self, txhash):
-        self.recent['recent'].append(txhash),
-        try:
-            self.write_recent_file()
-            log.info("saved recent transactions to file")
-        except Exception as e:
-            log.error("error writing file: %s", e)
-            Snackbar(text=f"error: {e}")
+    def addRecent(self, txhash=''):
+        if not txhash.startswith('0x'):
+            log.info(f'Tx hash: {txhash} not valid')
             return
+        else:
+            try:
+                self.recent['recent'].append(txhash),
+                self.write_recent_file()
+                log.info("saved recent transactions to file")
+            except Exception as e:
+                log.error("error writing file: %s", e)
+                Snackbar(text=f"error: {e}")
+                return
 
     def popup_contacts(self, contact):
-        s = Snackbar(text=f'Add {contact[:10]} to Address Book?', button_text='OK', duration=5)
+        s = Snackbar(text=f'Add {contact[:10]} to Address Book?', button_text='OK', duration=3)
         def foo():
             self.addContact(contact)
         s.button_callback=foo
