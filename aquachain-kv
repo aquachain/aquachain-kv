@@ -2,7 +2,7 @@
 from aquachain import aquasettings, keystore
 from aquachain.aquachain import AquaTool
 from kivymd.button import MDIconButton
-from kivymd.list import ILeftBody, IRightBody
+from kivymd.list import ILeftBody, IRightBody, MDList
 from kivy import Logger
 import datetime
 import math
@@ -284,40 +284,73 @@ class Aquachain(BoxLayout):
 
 
     def popup_import_directory(self, viewonly=False):
-        content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(50))
-        kdir = TextInput(id='directory', text=self.config.get(aquaconf, 'keystore'))
+        content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(35))
         dirlabel= MDLabel(text='Keypath', font_style="Subhead")
-        passlabel= MDLabel(text='Passphrase', font_style="Subhead")
-        passphrase = TextInput(id='unlock', password= True)
-        # kdir.bind(hint_text='Enter filepath to key')
-        # passphrase.bind(hint_text='Account passphrase')
+        kdir = TextInput(id='finddirectory',multiline=False,font_size=18,text=self.config.get(aquaconf, 'keystore'))
         content.add_widget(dirlabel)
         content.add_widget(kdir)
-        content.add_widget(passlabel)
-        content.add_widget(passphrase)
         dialog = MDDialog(title="Enter path of phrase files",
             content=content,
-            size_hint=(.7,.6),
+            size_hint=(.4,.5),
             auto_dismiss=False,
             )
-        def findkey(instance):
-            if kdir.text == "":
-                kdir.text = "."
-            phrases = keystore.Keystore(directory=os.path.expanduser(kdir.text)).listphrases()
-            for phrase in phrases:
-                try:
-                    self.add_hdwallet(phrase, passphrase.text, saving=False, viewonly=viewonly, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
-                except ValueError as e:
-                    log.error("skipping bad phrase wallet: %s", e)
-                    continue
-                except Exception as e:
-                    log.error("skipping phrase wallet: %s", e)
-                    raise
+        def find(instance):
+            self.keystore.directory = os.path.expanduser(kdir.text)
+            self.findkey()
             dialog.dismiss()
-            self.switch_view('coinbasechooser', 'up')
         dialog.add_action_button('CANCEL', action=lambda *x: dialog.dismiss())
-        dialog.add_action_button("CONFIRM", action=findkey)
+        dialog.add_action_button("CONFIRM", action=find)
         dialog.open()
+
+    def findkey(self, viewonly=False):
+        self.ids.loadlocal.text = 'Load Another Key'
+        content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(35))
+        keylist = MDList(valign='top')
+        dirlabel= MDLabel(text='Choose Key', font_style="Subhead", bold=True)
+        keydrop = DropDown(id='keydrop')
+        passlabel= MDLabel(text='Passphrase', font_style="Subhead", bold=True)
+        passphrase = TextInput(id='unlock', password=True, multiline=False)
+        content.add_widget(dirlabel)
+        content.add_widget(keylist)
+        content.add_widget(passlabel)
+        content.add_widget(passphrase)
+        phrases = keystore.Keystore().listphrases()
+        log.info(f'PHRASES: {phrases}')
+        keys = []
+        phrase = ''
+        i=0
+        for p in phrases:
+            keys.append(p.split()[0])
+            phrase = p
+        log.info(f'KEYS: {keys}')
+        for key in keys:
+            log.debug(key)
+            listitem = MDRaisedButton(text=key.capitalize(), size_hint=(1,None))
+            listitem.bind(on_release=lambda listitem: keydrop.select(listitem.text))
+            keydrop.add_widget(listitem)
+        mainbutton = OneLineListItem(text='Select Key',
+                                     font_style='Title')
+        def doit(y):
+            setattr(mainbutton, 'text', y)
+
+        mainbutton.bind(on_release=keydrop.open)
+        keydrop.bind(on_select=lambda instance, x: doit(x))
+        keylist.add_widget(mainbutton)
+        popdialog = MDDialog(content=content,
+            size_hint=(.5,.6),
+            auto_dismiss=False,
+            )
+        def getkey(instance):
+            for t in phrases:
+                if mainbutton.text.lower() in t:
+                    phrase = t
+            self.add_hdwallet(phrase, passphrase.text, saving=False, viewonly=viewonly, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
+            popdialog.dismiss()
+            self.switch_view('coinbasechooser', 'up')
+
+        popdialog.add_action_button('CANCEL', action=lambda *x: popdialog.dismiss())
+        popdialog.add_action_button("CONFIRM", action=getkey)
+        popdialog.open()
 
 
     def popup_import_mnem(self, viewonly=False):
