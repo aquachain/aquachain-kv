@@ -139,7 +139,11 @@
                     md_bg_color: app.theme_cls.primary_color
                     background_palette: 'Primary'
                     background_hue: '500'
-                    right_action_items: [['settings', lambda x: app.open_settings()], ['lock' if root.ids.scr_mngr.current == 'welcome' else 'lock-open-outline', lambda x: root.lock()],['home', lambda x: root.switch_view('welcome', 'left')]]
+                    right_action_items:
+                        [['settings', lambda x: app.open_settings()],
+                        ['lock' if root.ids.scr_mngr.current == 'welcome' else 'lock-open-outline', lambda x: root.lock()],
+                        ['home', lambda x: root.switch_view('welcome', 'left')],
+                        ['magnify', lambda x: root.switch_view('search', 'left')]]
                 ScreenManager:
                     id: scr_mngr
                     Screen:
@@ -354,6 +358,7 @@
                             MDCard:
                                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                                 MDTabbedPanel:
+                                    id: blocktabs
                                     MDTab:
                                         name:'blocktab'
                                         id: blocktab
@@ -392,7 +397,7 @@
                                                 orientation: 'vertical'
                                     MDTab:
                                         name: 'searchtab'
-                                        id: histtab
+                                        id: searchtab
                                         text: 'Search'
                                         ScrollView:
                                             size: (self.parent.width, self.parent.height)
