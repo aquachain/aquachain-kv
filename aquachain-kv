@@ -548,6 +548,14 @@ class Aquachain(BoxLayout):
             self.get_coinbase_view()
         if page == 'blockchain':
             self.getHistory(limit=self.config.getdefaultint(aquaconf, 'blocklimit', 10))
+        if page == 'search':
+            self.ids.blocktabs.current = 'histtab'
+            self.ids.blocktabs.current = 'blocktab'
+            self.ids.blocktabs.current = 'searchtab'
+            log.info(f'index {self.ids.blocktabs.index}')
+            log.info(f'previous tab {self.ids.blocktabs.previous_tab}')
+            self.ids.blocktabs.previous_tab = self.ids.blocktab
+            page = 'blockchain'
         if page == 'current_block':
             self.popup_block(self.head['hash'])
             return
