@@ -405,22 +405,31 @@
                                             size_hint: (None, 1)
                                             GridLayout:
                                                 cols: 1
-                                                TextInput:
-                                                    id: blockchain_search_query
-                                                    helper_text: 'Block hash, TX hash, or public address'
-                                                    multiline: False
-                                                    on_text_validate: root.blockchain_search()
-                                                    size_hint: 1, None
-                                                MDFlatButton:
-                                                    text: 'Search!'
-                                                    on_release: root.blockchain_search()
-                                                GridLayout:
-                                                    height: self.minimum_height
-                                                    cols:3
-                                                    padding: 0
-                                                    spacing: -10
+                                                row_default_height: dp(20)
+                                                BoxLayout:
+                                                    padding: dp(30)
+                                                    size_hint_y: .4
+                                                    BoxLayout:
+                                                        size_hint_x: .7
+                                                        # padding: dp(10), dp(20)
+                                                        height: self.minimum_height
+                                                        MDTextField:
+                                                            id: blockchain_search_query
+                                                            hint_text: 'Block hash, TX hash, or public address'
+                                                            multiline: False
+                                                            on_text_validate: root.blockchain_search()
+                                                    BoxLayout:
+                                                        padding: dp(15)
+                                                        size_hint_x: .3
+                                                        MDRaisedButton:
+                                                            text: 'Search!'
+                                                            on_release: root.blockchain_search()
+                                                BoxLayout:
+                                                    size_hint_y: .9
+                                                    padding: dp(50)
                                                     id: blockchain_search_content
                                                     orientation: 'vertical'
+
 
                     Screen:
                         name: 'coinbasechooser'

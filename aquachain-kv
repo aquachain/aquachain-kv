@@ -1061,7 +1061,7 @@ class Aquachain(BoxLayout):
                 log.error("cant convert query to int: %s", e)
             return
 
-        widget = MDLabel(text='nothing found')
+        widget = MDLabel(text='Nothing Found', font_style= 'Headline', halign='center')
         self.ids.blockchain_search_content.add_widget(widget)
 
     def viewonly(self):
