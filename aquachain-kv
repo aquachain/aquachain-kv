@@ -99,7 +99,8 @@ class Aquachain(BoxLayout):
     # history of sent transactions
     sent_tx = []
     synced = False
-    contacts = {"saved": {'0xce3b1b1c2a4db8ee2628b34ed564fe3daab0f7bc': 'donate     (to the aquachain foundation)'}, "recent": []}
+    contacts = {"saved": {'0xce3b1b1c2a4db8ee2628b34ed564fe3daab0f7bc': 'donate     (to the aquachain foundation)'}}
+    recent =  {"recent": []}
     config = Config
     mkeys = []
     viewonly = True
@@ -607,6 +608,12 @@ class Aquachain(BoxLayout):
             log.info("dumping: %s", self.contacts)
             json.dump(self.contacts, f)
             return
+    def write_recent_file(self):
+        # save self.recent to ~/.aquachain/recent.json
+        with open('recent.json', 'w+') as f:
+            log.info("dumping: %s", self.recent)
+            json.dump(self.recent, f)
+            return
 
     def popup_editcontact(self, pub='', note=''):
         self.popup_addcontact(overwrite=True, pub=pub, note=note)
@@ -658,9 +665,9 @@ class Aquachain(BoxLayout):
                 Snackbar(text=f"error: {e}")
                 return
     def addRecent(self, txhash):
-        self.contacts['recent'].append(txhash),
+        self.recent['recent'].append(txhash),
         try:
-            self.write_contacts_file()
+            self.write_recent_file()
             log.info("saved recent transactions to file")
         except Exception as e:
             log.error("error writing file: %s", e)
@@ -689,6 +696,12 @@ class Aquachain(BoxLayout):
                 log.info(f'Json Data: {json_data}')
                 self.contacts = json_data
                 log.info(self.contacts)
+        if os.path.isfile('recent.json'):
+            with open('recent.json', 'r') as f:
+                json_data = json.load(f)
+                log.info(f'Json Data: {json_data}')
+                self.recent = json_data
+                log.info(self.recent)
         def foo(instance):
             bal = 'INVALID ACCT'
             try:
@@ -716,7 +729,7 @@ class Aquachain(BoxLayout):
                 note = note[0]
             self.ids.saved_cont.add_widget(MDFlatButton(id=address, text=note[:10], on_release=foo))
             self.ids.saved_cont.add_widget(MDFlatButton(id=address,text=address, on_release=foo))
-        for txhash in self.contacts['recent']:
+        for txhash in self.recent['recent']:
             tx = self.aqua.gettransaction(txhash)
             log.info(f"Loading recent tx: {tx}")
             if 'to' in tx:
