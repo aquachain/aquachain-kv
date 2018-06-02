@@ -286,13 +286,12 @@ class Aquachain(BoxLayout):
 
     def popup_import_directory(self, viewonly=False):
         content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(35))
-        dirlabel= MDLabel(text='Keypath', font_style="Subhead")
-        kdir = TextInput(id='finddirectory',multiline=False,font_size=18,text=self.config.get(aquaconf, 'keystore'))
+        dirlabel= MDLabel(text='Path to key', font_style="Subhead")
+        kdir = MDTextField(id='finddirectory',multiline=False,font_size=18,hint_text='Diectory',text=self.config.get(aquaconf, 'keystore'))
         content.add_widget(dirlabel)
         content.add_widget(kdir)
-        dialog = MDDialog(title="Enter path of phrase files",
-            content=content,
-            size_hint=(.4,.5),
+        dialog = MDDialog(content=content,
+            size_hint=(.55,.5),
             auto_dismiss=False,
             )
         def find(instance):
@@ -310,11 +309,17 @@ class Aquachain(BoxLayout):
         dirlabel= MDLabel(text='Choose Key', font_style="Subhead", bold=True)
         keydrop = DropDown(id='keydrop')
         passlabel= MDLabel(text='Passphrase', font_style="Subhead", bold=True)
-        passphrase = TextInput(id='unlock', password=True, multiline=False)
+        passphrase = MDTextField(id='unlock',password=True, multiline=False)
+        # passchex = MDCheckbox(active=True, text='Hide Password')
+        # if passchex.active == True:
+        #     passphrase.password = True
+        # elif passchex.active == False:
+        #     passphrase.password = False
         content.add_widget(dirlabel)
         content.add_widget(keylist)
         content.add_widget(passlabel)
         content.add_widget(passphrase)
+        # content.add_widget(passchex)
         phrases = keystore.Keystore().listphrases()
         log.info(f'PHRASES: {phrases}')
         keys = []
@@ -338,7 +343,7 @@ class Aquachain(BoxLayout):
         keydrop.bind(on_select=lambda instance, x: doit(x))
         keylist.add_widget(mainbutton)
         popdialog = MDDialog(content=content,
-            size_hint=(.5,.6),
+            size_hint=(.55,.6),
             auto_dismiss=False,
             )
         def getkey(instance):
