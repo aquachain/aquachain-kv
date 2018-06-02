@@ -990,13 +990,10 @@ class Aquachain(BoxLayout):
         self.balances = {}
         self.addresses = []
         self.balance = 0.0
-        # # self.keystore.directory = ''
+        self.ids.loadlocal.text = 'Load from File'
         self.mkeys = []
         self.ids.send_addr.text = ''
-        # self.ids.unlock.text = ''
-        # self.ids.unlock1.text = ''
         self.ids.amount.text = ''
-        # self.ids.seedlabel.text = ''
         self.switch_view('welcome', direction='left')
         Snackbar('Accounts Cleared').show()
 
@@ -1015,14 +1012,10 @@ class Aquachain(BoxLayout):
             log.error("no accounts found. you must create a new account.")
             self.choose_account = []
             return
-        # check already filled
-
-        # if len(self.choose_account) == len(accounts):
-        #     log.debug("already filled, not refilling menu")
-        #     return
 
         self.refresh_balance()
         self.choose_account = []
+
         # fill menu chooses coinbase
         log.info("fillMenu() filling with %s accounts: %s", len(accounts), accounts)
         i = 0
@@ -1037,11 +1030,7 @@ class Aquachain(BoxLayout):
                               text=str(i+1)+ ':' + ' ' + str(account[:20]) + '\t\tBalance:' + str(bal),
                               size_hint=(1,None),
                               height=dp(50))
-
-
             listitem.bind(on_release=lambda listitem: dropdown.select(listitem.text))
-            # listitem.bind(on_release=self.updateqr(account))
-
             dropdown.add_widget(listitem)
             i = i+1
         mainbutton = TwoLineListItem(text='Coinbase (click to change)',
@@ -1066,13 +1055,8 @@ class Aquachain(BoxLayout):
                     return
                 else:
                     log.info("not %s in %s", pubsearch, addr)
-
             log.error("skipping %s", addr)
-
-
         mainbutton.bind(on_release=dropdown.open)
-        # mainbutton.bind(on_release=self.fillMenu())
-
         dropdown.bind(on_select=lambda instance, x: doit(x))
         self.ids.newlist.add_widget(mainbutton)
 
@@ -1081,6 +1065,7 @@ class Aquachain(BoxLayout):
         query = self.ids.blockchain_search_query.text
         self.ids.blockchain_search_query.text = ''
         if len(query) == 42:
+
             # address
             try:
                 balance = self.aqua.getbalance(query)
@@ -1089,15 +1074,15 @@ class Aquachain(BoxLayout):
             except Exception as e:
                 log.error("cant convert query to int: %s", e)
                 return
-
         elif len(query) == 66:
+
             # tx
             tx = self.aqua.gettransaction(query)
             if 'from' in tx:
                 self.popup_tx(tx)
                 return
-
         elif len(query) < 12:
+
             # maybe block number
             try:
                 i = int(query)
@@ -1106,7 +1091,6 @@ class Aquachain(BoxLayout):
             except Exception as e:
                 log.error("cant convert query to int: %s", e)
             return
-
         widget = MDLabel(text='Nothing Found', font_style= 'Headline', halign='center')
         self.ids.blockchain_search_content.add_widget(widget)
 
@@ -1134,8 +1118,6 @@ class Aquachain(BoxLayout):
             address.bind(on_release=self.updateqr(account))
             i = i+1
 
-
-
 # application window specific
 class AquachainApp(App):
     title = 'Aquachain Wallet'
@@ -1149,10 +1131,8 @@ class AquachainApp(App):
     aq = None
     theme_cls.primary_palette = 'Teal'
     theme_cls.primary_hue = '400'
-    # theme_cls.primary_dark_hue = '900'
     theme_cls.accent_palette = 'LightBlue'
     theme_cls.accent_hue = '400'
-    # theme_cls.main_background_color = 'Grey 900'
     MDLabel.theme_text_color = 'Primary'
     Toolbar.specific_secondary_text_color = theme_cls.primary_color
 
@@ -1169,6 +1149,7 @@ class AquachainApp(App):
             os.path.expanduser('~/.aquachain/aquaconfig.ini'))
 
     def build(self):
+
         # read settings
         self.config.read(self.get_application_config())
         self.settings_cls = SettingsWithSidebar
@@ -1187,7 +1168,6 @@ class AquachainApp(App):
         for config_field in aquasettings.default_settings:
             self.config.set(aquaconf, config_field, aquasettings.default_settings[config_field])
             log.info(f"setting {config_field}: {aquasettings.default_settings[config_field]}")
-        #config.setdefaults(aquaconf, aquasettings.default_settings)
 
     def build_settings(self, settings):
         self.config.read(self.get_application_config())
@@ -1195,14 +1175,12 @@ class AquachainApp(App):
             self.config,
         data=aquasettings.settings_json)
 
-
     def on_config_change(self, config, section, key, value):
         if config is self.config:
             log.info("config changed: %s[%s] = \"%s\"", section, key, value)
             if section == aquaconf:
                 if key == "rpchost":
                     self.aq.aqua = AquaTool(ipcpath=self.config.get(aquaconf, 'ipcpath'), rpchost=self.config.get(aquaconf, 'rpchost'))
-                    #self.aq.setrpc(self.config.get(aquaconf, 'rpchost'))
                 if key == "Theme":
                     self.theme_cls.theme_style = self.config.get(aquaconf, 'Theme')
                 if key == "ipcpath":
@@ -1222,7 +1200,6 @@ class AquachainApp(App):
             self.config.write()
         else:
             log.error("config error")
-
 
 # run program
 if __name__ == '__main__':

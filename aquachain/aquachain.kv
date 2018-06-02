@@ -57,7 +57,6 @@
                     BoxLayout:
                         orientation: 'vertical'
                         size_hint_y: 15
-
                         MDList:
                             TwoLineIconListItem:
                                 id: block
@@ -65,11 +64,9 @@
                                 secondary_text: "Current block"
                                 on_release:
                                     root.popup_block(root.head)
-                                    # root.getHistory()
                                 ListIconLeft:
                                     id:li_icon_1
                                     icon: 'emby'
-
                             TwoLineIconListItem:
                                 id: balance
                                 text: ""
@@ -85,7 +82,6 @@
                         size_hint_y: 33
                         ScrollView:
                             do_scroll_x: False
-
                             MDList:
                                 OneLineIconListItem:
                                     text: "My Wallets"
@@ -103,7 +99,6 @@
                                     bold: True
                                     on_release:
                                         root.switch_view('send', 'up')
-                                        # root.ids.send_chooser.secondary_text = root.coinbase
                                     ListIconLeft:
                                         id: li_icon_1
                                         icon: 'arrow-right-bold-circle-outline'
@@ -125,10 +120,6 @@
                                     ListIconLeft:
                                         id: li_icon_2
                                         icon: 'cube-outline'
-
-
-
-
         BoxLayout:
             orientation: 'vertical'
             size_hint_x: 90
@@ -165,7 +156,6 @@
                                     MDLabel:
                                         pos_hint: {'center_x': 0.5, 'center_y': 1}
                                         text: 'How would you like to proceed?'
-                                        # size: 3 * dp(48), dp(48)
                                         font_style: "Subhead"
                                         halign: 'center'
                                     BoxLayout:
@@ -176,7 +166,7 @@
                                             active: True
                                         MDLabel:
                                             id: loadlocal
-                                            text: "Load Local"
+                                            text: "Load from File"
                                             font_style: "Subhead"
                                     BoxLayout:
                                         spacing: -dp(100)
@@ -226,7 +216,6 @@
                                 size_hint_y: 1
                                 height: self.minimum_height
                                 padding: (self.width/8), (self.height/8)
-                                # spacing: 20
                                 MDCard:
                                     orientation: 'vertical'
                                     MDList:
@@ -297,7 +286,6 @@
                                 orientation: 'vertical'
                                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                                 MDTabbedPanel:
-
                                     MDTab:
                                         name:'contacts'
                                         id: contacts
@@ -312,8 +300,6 @@
                                                 cols:2
                                                 padding: 0
                                                 spacing: -10
-                                                # size_hint_y: 1
-                                                # row_default_height:40
                                                 id: saved_cont
                                                 MDFlatButton:
                                                     id: name
@@ -330,8 +316,6 @@
                                                 id: add_contact
                                                 icon: 'plus'
                                                 on_release: root.popup_addcontact()
-
-
                                     MDTab:
                                         name: 'recent'
                                         id: recent
@@ -346,11 +330,8 @@
                                                 cols:2
                                                 padding: 0
                                                 spacing: -10
-                                                # size_hint_y: 1
-                                                # row_default_height:40
                                                 id: recent_cont
                                                 orientation: 'vertical'
-
                     Screen:
                         name:'blockchain'
                         BoxLayout:
@@ -374,8 +355,6 @@
                                                 cols:6
                                                 padding: 0
                                                 spacing: -20 ,-10
-                                                # size_hint_y: 1
-                                                # row_default_height:40
                                                 id: container1
                                                 orientation: 'vertical'
                                     MDTab:
@@ -392,8 +371,6 @@
                                                 cols:3
                                                 padding: 0
                                                 spacing: -10
-                                                # size_hint_y: 1
-                                                # row_default_height:40
                                                 id: hist_tx
                                                 orientation: 'vertical'
                                     MDTab:
@@ -412,7 +389,6 @@
                                                     size_hint_y: .4
                                                     BoxLayout:
                                                         size_hint_x: .7
-                                                        # padding: dp(10), dp(20)
                                                         height: self.minimum_height
                                                         MDTextField:
                                                             id: blockchain_search_query
@@ -430,8 +406,6 @@
                                                     padding: dp(50)
                                                     id: blockchain_search_content
                                                     orientation: 'vertical'
-
-
                     Screen:
                         name: 'coinbasechooser'
                         id: coinbasechooser
@@ -453,14 +427,9 @@
                                             GridLayout:
                                                 size_hint_y: None
                                                 spacing: -15, -10
-                                                # size_hint_x: 0.8
                                                 height: self.minimum_height
-                                                #halign: 'center'
-                                                #padding: dp(16)
                                                 cols:3
-                                                # row_default_height: dp(30)
                                                 id: cbasegrid
-                                                #orientation: 'vertical'
                                     MDTab:
                                         name: 'coinbasetab2'
                                         id: 'coinbasetab2'
@@ -474,11 +443,6 @@
                                             GridLayout:
                                                 size_hint_y: None
                                                 spacing: -15, -10
-                                                # size_hint_x: 0.8
                                                 height: self.minimum_height
-                                                #halign: 'center'
-                                                #padding: dp(16)
                                                 cols:3
-                                                # row_default_height: dp(30)
                                                 id: cbasegrid2
-                                                #orientation: 'vertical'
