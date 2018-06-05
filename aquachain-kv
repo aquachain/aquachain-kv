@@ -321,14 +321,12 @@ class Aquachain(BoxLayout):
         content.add_widget(passphrase)
         # content.add_widget(passchex)
         phrases = keystore.Keystore().listphrases()
-        log.info(f'PHRASES: {phrases}')
         keys = []
         phrase = ''
         i=0
         for p in phrases:
             keys.append(p.split()[0])
             phrase = p
-        log.info(f'KEYS: {keys}')
         for key in keys:
             log.debug(key)
             listitem = MDRaisedButton(text=key.capitalize(), size_hint=(1,None))
