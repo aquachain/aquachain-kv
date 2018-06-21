@@ -4,16 +4,14 @@ from aquachain import aquakeys as keystore
 from aquachain.aquatool import AquaTool
 
 import datetime
+import time
 import math
 import sys
 import binascii
 import os
 import requests, json
-from mnemonic import Mnemonic
-import time
-# from subprocess import Popen, PIPE, STDOUT
-# import subprocess
 
+from mnemonic import Mnemonic
 from kivymd.button import MDIconButton
 from kivymd.list import ILeftBody, IRightBody, MDList
 from kivy import Logger
@@ -47,7 +45,6 @@ from kivymd.label import MDLabel
 from kivymd.tabs import MDTabbedPanel, MDTab
 from kivymd.toolbar import Toolbar
 from kivymd.card import MDCard, MDSeparator
-# from Crypto.PublicKey import RSA
 
 from kivymd.material_resources import DEVICE_TYPE
 from kivymd.navigationdrawer import MDNavigationDrawer, NavigationDrawerHeaderBase
@@ -69,7 +66,6 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
 from kivymd.textfields import MDTextField
 from kivy.core.clipboard import Clipboard
-
 
 aquachain_assets = '/usr/local/aquachainkv' # linux
 
@@ -542,7 +538,7 @@ class Aquachain(BoxLayout):
             'value': hex(self.aqua.to_wei(amount)),
             'gasPrice': hex(self.aqua.to_wei(gasprice, 'gwei')),
             'gas': 21000,
-            'nonce': hex(self.aqua.get_nonce(fromwallet, 'pending'))
+            'nonce': hex(self.aqua.getnonce(fromwallet, 'pending'))
         }
         if fromwallet in self.aqua.getaccounts():
             log.info("sending transaction (RPC): (%s) %s", fromwallet, tx)
@@ -1222,6 +1218,8 @@ class AquachainApp(App):
 
 # run program
 if __name__ == '__main__':
+    # from subprocess import Popen, PIPE, STDOUT
+    # import subprocess
     # p = Popen(["aquachain", "-vmodule", "good", "-fast","daemon"])
     try:
         AquachainApp().run()
