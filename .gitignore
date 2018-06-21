@@ -2,6 +2,7 @@
 *.ini
 *.key
 *.wallet
+recent.json
 contacts.json
 src
 *cache

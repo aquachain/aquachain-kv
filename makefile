@@ -4,7 +4,6 @@ run:
 	python3 aquachain-kv
 
 deps:
-	pip3 install --user -r requirements.txt
 	python3 setup.py install --user
 	garden install qrcode
 
@@ -13,7 +12,8 @@ test:
 
 clean:
 	rm -rf aquachain-kv.egg-info
-	rm -rf build dist
+	rm -rf build dist src
+	rm -rf *.egg-info
 	rm -rvf *.pyc */*.pyc */__pycache__ || true
 	rm -rvf *.ini || true
 	python3 setup.py clean
