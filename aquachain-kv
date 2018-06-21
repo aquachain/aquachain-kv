@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-from aquachain import aquasettings, keystore
-from aquachain.aquachain import AquaTool
-from kivymd.button import MDIconButton
-from kivymd.list import ILeftBody, IRightBody, MDList
-from kivy import Logger
+from aquachainkv import aquasettings
+from aquachain import aquakeys as keystore
+from aquachain.aquatool import AquaTool
+
 import datetime
+import time
 import math
 import sys
 import binascii
-from subprocess import Popen, PIPE, STDOUT
-import subprocess
 import os
+import requests, json
+
+from mnemonic import Mnemonic
+from kivymd.button import MDIconButton
+from kivymd.list import ILeftBody, IRightBody, MDList
+from kivy import Logger
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.button import Button
@@ -40,9 +45,7 @@ from kivymd.label import MDLabel
 from kivymd.tabs import MDTabbedPanel, MDTab
 from kivymd.toolbar import Toolbar
 from kivymd.card import MDCard, MDSeparator
-from os import chmod
-from Crypto.PublicKey import RSA
-from mnemonic import Mnemonic
+
 from kivymd.material_resources import DEVICE_TYPE
 from kivymd.navigationdrawer import MDNavigationDrawer, NavigationDrawerHeaderBase
 from kivymd.selectioncontrols import MDCheckbox
@@ -50,7 +53,6 @@ from kivymd.snackbar import Snackbar
 from kivymd.theming import ThemeManager, ThemableBehavior
 from kivymd.time_picker import MDTimePicker
 from kivymd.list import OneLineListItem, TwoLineListItem
-import requests, json
 from kivy.properties import BoundedNumericProperty, ReferenceListProperty, ListProperty,BooleanProperty
 from kivymd.elevationbehavior import RectangularElevationBehavior
 from kivy.garden.qrcode import QRCodeWidget
@@ -65,9 +67,7 @@ from kivy.uix.popup import Popup
 from kivymd.textfields import MDTextField
 from kivy.core.clipboard import Clipboard
 
-import time
-
-aquachain_assets = '/usr/local/aquachain' # linux
+aquachain_assets = '/usr/local/aquachainkv' # linux
 
 Builder.load_file(os.path.join(aquachain_assets, 'aquachain.kv'))
 
@@ -133,10 +133,8 @@ class Aquachain(BoxLayout):
         return foo
     # get latest head block
     def update(self):
-        log.debug("connecting to rpc: %s", self.aqua.providers[0])
         try:
             newhead = self.aqua.gethead()
-            log.debug("connected to rpc: %s", self.aqua.providers[0])
         except Exception as e:
             Snackbar("Please start aquachain node or change host in settings", duration=0.5).show()
             log.info("unable to connect to rpc: %s", e)
@@ -218,7 +216,7 @@ class Aquachain(BoxLayout):
             log.debug("added mkey (not viewonly)")
 
         for i in range(num):
-            key = self.aqua.derive_hd(mkey, i)
+            key = self.keystore.from_parent_key(mkey, i)
             pub = key.public_key.address()
             log.info("added pubkey from mkey %s", pub)
             self.balances[pub] = self.aqua.getbalance(pub)
@@ -303,6 +301,7 @@ class Aquachain(BoxLayout):
         dialog.open()
 
     def findkey(self, viewonly=False):
+        log.debug(f"finding phrases in {self.keystore.directory}")
         self.ids.loadlocal.text = 'Load Another Key'
         content = GridLayout(cols=1, size_hint_y=None, row_default_height=dp(35))
         keylist = MDList(valign='top')
@@ -320,7 +319,7 @@ class Aquachain(BoxLayout):
         content.add_widget(passlabel)
         content.add_widget(passphrase)
         # content.add_widget(passchex)
-        phrases = keystore.Keystore().listphrases()
+        phrases = self.keystore.listphrases()
         keys = []
         phrase = ''
         i=0
@@ -332,8 +331,12 @@ class Aquachain(BoxLayout):
             listitem = MDRaisedButton(text=key.capitalize(), size_hint=(1,None))
             listitem.bind(on_release=lambda listitem: keydrop.select(listitem.text))
             keydrop.add_widget(listitem)
+
         mainbutton = OneLineListItem(text='Select Key',
                                      font_style='Title')
+        if len(keys) == 0:
+            mainbutton.text = 'No Phrases'
+
         def doit(y):
             setattr(mainbutton, 'text', y)
 
@@ -380,7 +383,9 @@ class Aquachain(BoxLayout):
             )
         def findkey(instance):
             try:
-                self.add_hdwallet(mnem.text, passphrase.text, saving=saving_choice.active, viewonly=viewonly, num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
+                self.add_hdwallet(mnem.text, passphrase.text,
+                    saving=saving_choice.active, viewonly=viewonly,
+                    num=self.config.getdefaultint(aquaconf, 'hdwallets', 1))
             except Exception as oo:
                 Snackbar(f"Error: {oo}", duration=5).show()
                 dialog.dismiss()
@@ -392,9 +397,7 @@ class Aquachain(BoxLayout):
         dialog.add_action_button("CONFIRM", action=findkey)
         dialog.open()
 
-
     # set new coinbase
-
     def set_coinbase(self, acct):
         self.coinbase = acct
         self.updateqr(acct)
@@ -535,7 +538,7 @@ class Aquachain(BoxLayout):
             'value': hex(self.aqua.to_wei(amount)),
             'gasPrice': hex(self.aqua.to_wei(gasprice, 'gwei')),
             'gas': 21000,
-            'nonce': hex(self.aqua.get_nonce(fromwallet, 'pending'))
+            'nonce': hex(self.aqua.getnonce(fromwallet, 'pending'))
         }
         if fromwallet in self.aqua.getaccounts():
             log.info("sending transaction (RPC): (%s) %s", fromwallet, tx)
@@ -1215,11 +1218,13 @@ class AquachainApp(App):
 
 # run program
 if __name__ == '__main__':
-    p = Popen(["aquachain", "-vmodule", "good", "-fast","daemon"])
+    # from subprocess import Popen, PIPE, STDOUT
+    # import subprocess
+    # p = Popen(["aquachain", "-vmodule", "good", "-fast","daemon"])
     try:
         AquachainApp().run()
     except Exception as e:
         log.error("fatal: %s", e)
-        p.terminate()
+        # p.terminate()
         raise
-    p.terminate()
+    # p.terminate()
