@@ -13,6 +13,7 @@ test:
 
 clean:
 	rm -rf aquachain-kv.egg-info
+	rm -rf build dist
 	rm -rvf *.pyc */*.pyc */__pycache__ || true
 	rm -rvf *.ini || true
 	python3 setup.py clean
@@ -29,7 +30,7 @@ install-user:
 	python3 setup.py install --user
 
 install:
-	python3 setup.py install 
+	python3 setup.py install
 	python3 setup.py install_data
 
 
