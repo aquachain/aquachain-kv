@@ -13,9 +13,10 @@ setup(
     packages = ['aquachainkv'],
     data_files = [('aquachainkv', ['aquachainkv/aquachain.kv', 'img/aquachain.png'])],
     include_package_data=True,
+    install_requires = ['aquachain.py', 'kivy', 'kivymd'],
     dependency_links = ['https://github.com/aquachain/aquachain.py/tarball/master#egg=aquachain.py',
     'https://github.com/kivy/kivy/tarball/master#egg=kivy',
-    'https://gitlab.com/kivymd/KivyMD/tarball/master#egg=kivymd'],
+    'https://gitlab.com/kivymd/KivyMD/-/archive/master/KivyMD-master.tar.gz#egg=kivymd'],
     license = 'GPL',
     test_suite='tests',
     classifiers = [
