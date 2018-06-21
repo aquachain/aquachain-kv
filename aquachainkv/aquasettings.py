@@ -1,6 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import json
-
 settings_json = json.dumps([
     {'type': 'title',
         'title': 'Settings'},
@@ -48,7 +47,7 @@ settings_json = json.dumps([
 
 default_settings = {
     'currency': 'USD',
-    'rpchost': 'http://localhost:8543',
+    'rpchost': 'https://c.onical.org',
     'ipcpath': '~/.aquachain/aquachain.ipc',
     'keystore': '~/.aquachain/aquakeys',
     'Theme': 'Dark',
