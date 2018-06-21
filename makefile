@@ -1,4 +1,4 @@
-default: run
+default: deps
 
 run:
 	python3 aquachain-kv

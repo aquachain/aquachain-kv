@@ -1,7 +1,7 @@
 pygame
 qrcode
 Cython==0.28.2
-aquachain.py
+-e git+https://github.com/aquachain/aquachain.py.git#egg=aquachain
 -e git+https://github.com/kivy/kivy.git#egg=kivy
 -e git+https://gitlab.com/kivymd/KivyMD.git#egg=kivymd
 kivy-garden
