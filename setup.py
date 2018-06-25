@@ -13,7 +13,7 @@ setup(
     packages = ['aquachainkv'],
     data_files = [('aquachainkv', ['aquachainkv/aquachain.kv', 'img/aquachain.png'])],
     include_package_data=True,
-    install_requires = ['aquachain.py', 'kivy', 'kivymd'],
+    install_requires = ['aquachain.py', 'kivy', 'kivymd', 'Cython==0.28.3'],
     dependency_links = ['git+https://github.com/aquachain/aquachain.py.git#egg=aquachain.py',
     'git+https://github.com/kivy/kivy.git#egg=kivy',
     'git+https://gitlab.com/kivymd/KivyMD.git#egg=kivymd'],
