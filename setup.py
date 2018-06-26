@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='aquachain-kv',
-    version='0.0.1',
+    version='0.0.2',
     description='Aquachain GUI wallet',
     url='https://github.com/aquachain/aquachain-kv',
     long_description='Aquachain GUI wallet, using kivy, kivymd, and python 3.6.5',
@@ -13,10 +13,13 @@ setup(
     packages = ['aquachainkv'],
     data_files = [('aquachainkv', ['aquachainkv/aquachain.kv', 'img/aquachain.png'])],
     include_package_data=True,
-    install_requires = ['aquachain.py', 'kivy', 'kivymd'],
-    dependency_links = ['https://github.com/aquachain/aquachain.py/tarball/master#egg=aquachain.py',
-    'https://github.com/kivy/kivy/tarball/master#egg=kivy',
-    'https://gitlab.com/kivymd/KivyMD/-/archive/master/KivyMD-master.tar.gz#egg=kivymd'],
+    install_requires = ['aquachain.py', 'kivy', 'kivymd', 'Cython==0.28.3'],
+    dependency_links = ['git+https://github.com/aquachain/aquachain.py.git#egg=aquachain.py',
+    'git+https://github.com/kivy/kivy.git#egg=kivy',
+    'git+https://gitlab.com/kivymd/KivyMD.git#egg=kivymd'],
+    # dependency_links = ['https://github.com/aquachain/aquachain.py/tarball/master#egg=aquachain.py',
+    # 'https://github.com/kivy/kivy/tarball/master#egg=kivy',
+    # 'https://gitlab.com/kivymd/KivyMD/-/archive/master/KivyMD-master.tar.gz#egg=kivymd'],
     license = 'GPL',
     test_suite='tests',
     classifiers = [
