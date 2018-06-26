@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='aquachain-kv',
-    version='0.0.1',
+    version='0.0.2',
     description='Aquachain GUI wallet',
     url='https://github.com/aquachain/aquachain-kv',
     long_description='Aquachain GUI wallet, using kivy, kivymd, and python 3.6.5',
